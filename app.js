@@ -237,6 +237,7 @@ function ensureCountryRegionCoverage(){
 }
 function loadRegions(){
  if(!state.regionsVisible||regionData||regionsLoading)return;regionsLoading=true;
+ if(!window.__wcCountryFeatures?.length){wcGetFeatures().then(()=>{regionsLoading=false;loadRegions()}).catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить каталог стран для административных границ.'});return}
  $('map-hint').textContent='Загружаются административные границы регионов…';
  fetch(WC_REGION_GEO_URL,{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('Regions unavailable');return r.json()})
