@@ -76,6 +76,21 @@ function parse(raw){
  return JSON.parse(t.slice(s,e+1));
 }
 const route=(system,user,max)=>async(req,res)=>{try{res.json(parse(await ask(system,user(req.body||{}),max)))}catch(e){res.status(e.status||502).json({error:clean(e.message,700)})}};
+
+function compactAdvisorWorld(w={}){
+ const player=w.player||w.country||{};
+ const countries=(Array.isArray(w.countries)?w.countries:[]).slice(0,18).map(c=>({id:clean(c.id,80),name:clean(c.name,100),region:clean(c.region,60),populationEstimate:c.populationEstimate??null,gdpEstimate:c.gdpEstimate??null}));
+ const events=(w.events||w.chronicle||w.news||[]).slice(-6).map(e=>({date:clean(e.date,40),title:clean(e.title,180),description:clean(e.description||e.lead||e.text,500),category:clean(e.category,40),location:clean(e.location,100)}));
+ return {
+  date:clean(w.date,40),year:Number(w.year)||null,turn:Number(w.turn)||0,scenario:clean(w.scenario,80),
+  player:{id:clean(player.id||w.playerId||w.selected,80),name:clean(player.name||w.playerName||w.selectedName,100),government:clean(player.government,180),population:player.population??null,gdp:player.gdp??player.gdpEstimate??null,treasury:player.treasury??w.treasury??null,stability:player.stability??null,manpower:player.manpower??w.manpower??null,army:player.army??w.army??null},
+  relations:Object.fromEntries(Object.entries(w.relations||{}).slice(0,16)),
+  wars:(w.wars||[]).slice(0,12).map(x=>clean(typeof x==='string'?x:JSON.stringify(x),180)),
+  treaties:(w.treaties||[]).slice(0,12).map(x=>clean(typeof x==='string'?x:JSON.stringify(x),180)),
+  countries,events
+ };
+}
+
 function compactWorld(b){
  const allCountries=(b.countries||[]).filter(c=>c&&c.id).slice(0,220);
  const active=new Set();
@@ -176,7 +191,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
 });
 
 app.post('/api/ai/diplomacy',route('Ты — правительство иностранного государства в геополитической стратегии. Отвечай как реальный дипломатический собеседник, оценивая интересы, отношения, ситуацию, текст предложения и историю переговоров. Если игрок предлагает посольство или улучшение отношений, оценивай это отдельно от договора. Не соглашайся автоматически: можешь принять, отказать, запросить уточнения или выдвинуть встречные условия. Решение должно быть последовательным и обоснованным. Не раскрывай закрытые сведения и не выдумывай уже подписанные документы. Верни строго JSON {"reply":"официальный ответ до 1400 символов","relationDelta":целое от -5 до 5,"decision":"accept|reject|negotiate|none","proposalStatus":"accepted|rejected|counteroffer|pending|none","advisorMessage":"короткое уведомление советника игрока до 500 символов"}.',b=>JSON.stringify({countryId:clean(b.countryId,80),countryName:clean(b.countryName,100),message:clean(b.message,2000),proposalType:clean(b.proposalType,80),isProposal:!!b.isProposal,history:(b.history||[]).slice(-8),world:b.world||{}}),1100));
-app.post('/api/ai/advisor-chat',route('Ты — личный государственный советник игрока в стратегии World Chronicle. Отвечай на его вопрос, используя переданное состояние страны, мировую обстановку и историю разговора. Различай подтверждённые факты, вероятные оценки и неизвестные сведения. Не раскрывай секретные данные и не выдумывай цифры, договоры, события или действия других стран. Давай практичные рекомендации и объясняй риски. Верни строго JSON {"answer":"ответ советника на русском до 2200 символов","notification":"короткая дополнительная рекомендация или пустая строка"}.',b=>JSON.stringify({question:clean(b.question,1600),history:(b.history||[]).slice(-10),world:b.world||{},inbox:(b.inbox||[]).slice(-8)}),1100));
+app.post('/api/ai/advisor-chat',route('Ты — личный государственный советник игрока в стратегии World Chronicle. Отвечай на вопрос по краткой сводке страны и мира. Это отдельный лёгкий запрос советника, не расчёт мирового хода: не пытайся симулировать все государства и весь период. Различай подтверждённые факты, вероятные оценки и неизвестные сведения. Не раскрывай секретные данные и не выдумывай цифры, договоры, события или действия других стран. Давай практичные рекомендации и объясняй риски. Верни строго JSON {"answer":"ответ советника на русском до 2200 символов","notification":"короткая дополнительная рекомендация или пустая строка"}.',b=>JSON.stringify({question:clean(b.question,1200),history:(b.history||[]).slice(-4).map(x=>({from:clean(x.from,40),text:clean(x.text,500)})),world:compactAdvisorWorld(b.world||{}),inbox:(b.inbox||[]).slice(0,4).map(x=>({type:clean(x.type,40),title:clean(x.title,140),body:clean(x.body,350),createdAt:clean(x.createdAt,40)}))}),700));
 app.post('/api/ai/advisor',route('Ты — стратегический советник главы государства. Подготовь содержательный аналитический доклад: внутренняя обстановка, экономика, армия, дипломатические риски, открытые мировые события и приоритетные шаги. Не выдумывай показатели. Только JSON {"advice":"доклад на русском до 3000 символов"}.',b=>JSON.stringify(compactWorld(b)),1400));
 app.post('/api/ai/order',route('Ты — штабной аналитик игры. Разбери свободный приказ и сформулируй реалистичный план с этапами, ресурсными ограничениями, рисками и ожидаемыми последствиями. Не исполняй и не меняй показатели. Только JSON {"initiative":"формулировка","explanation":"подробное объяснение и этапы"}.',b=>JSON.stringify({order:clean(b.order,2000),world:b.world||{}}),900));
 
