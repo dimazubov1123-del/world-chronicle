@@ -243,7 +243,7 @@ if(window.L){
  map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxZoom:8,preferCanvas:true,zoomSnap:1,zoomDelta:1,wheelDebounceTime:110,wheelPxPerZoomLevel:140,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false}).setView([24,12],2);
  canvasRenderer=L.canvas({padding:.35});
  map.createPane('regionsPane');map.getPane('regionsPane').style.zIndex=420;map.createPane('citiesPane');map.getPane('citiesPane').style.zIndex=460;
- regionLayer=L.geoJSON(null,{pane:'regionsPane',renderer:canvasRenderer,style:{color:'#f4dfb4',weight:.65,opacity:.85,fillColor:'#f4dfb4',fillOpacity:.035},onEachFeature:(feature,layer)=>{const p=feature.properties||{},name=p.name||p.name_en||p.NAME||'Регион';layer.bindTooltip(name,{sticky:true,className:'wc-region-tooltip'});layer.on('click',()=>{$('map-hint').textContent='Регион: '+name+' · '+(p.admin||p.ADMIN||'')})}}).addTo(map);
+ regionLayer=L.geoJSON(null,{pane:'regionsPane',renderer:canvasRenderer,style:{color:'#f4dfb4',weight:.65,opacity:.85,fillColor:'#f4dfb4',fillOpacity:.035},onEachFeature:(feature,layer)=>{const p=feature.properties||{},name=p.name||p.name_en||p.NAME||p.shapeName||'Регион';layer.bindTooltip(name,{sticky:true,className:'wc-region-tooltip'});layer.on('click',()=>{$('map-hint').textContent='Регион: '+name+' · '+(p.admin||p.ADMIN||p.shapeGroup||'')})}}).addTo(map);
  cityLayer=L.layerGroup([], {pane:'citiesPane'}).addTo(map);
  map.on('moveend zoomend',updateCityVisibility);
  fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',{cache:'force-cache'})
