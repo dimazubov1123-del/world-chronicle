@@ -68,12 +68,20 @@
   const commandContext=orders.length?window.WC_WAR?.commandSnapshot?.():null;
   setBusy(true);
   try{
+   let commandPlan=null;
+   const hasMilitaryOrder=/(наступ|атак|штурм|захват|занять регион|передислоц|переброс|отвести войск|отступ|дивизи|соединени|мобилиз|сформир.*войск|развернут.*войск|двинут.*войск)/i.test(order);
+   if(hasMilitaryOrder&&commandContext){
+    try{
+     commandPlan=await window.WC_AI.request('command',{world:{...base,...commandContext},order});
+     console.info('[WC military order parser]',{operations:commandPlan.operations?.length||0,summary:commandPlan.summary||'',clarification:commandPlan.clarification||''});
+    }catch(commandError){console.warn('Отдельный разбор военного приказа не удался; используется общий разбор:',commandError.message)}
+   }
    const result=await window.WC_AI.request('world-turn',{...base,commandContext,diplomaticContext,multiplayerOrders:multiplayerOrders.filter(p=>p.order&&p.countryId!==net?.countryId),date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
    if(net){try{const applied=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/social/apply','POST',{token:net.token});for(const proposal of (applied.proposals||[])){const pair=[proposal.fromCountryId,proposal.toCountryId].sort().join('|');if(proposal.status==='accepted'){if(proposal.type==='embassy'){state.aiWorldState=state.aiWorldState||{countries:{},bilateralRelations:{}};state.aiWorldState.bilateralRelations=state.aiWorldState.bilateralRelations||{};state.aiWorldState.bilateralRelations[pair]=Math.max(-100,Math.min(100,Number(state.aiWorldState.bilateralRelations[pair]||0)+5));const other=proposal.fromCountryId===state.selected?proposal.toCountryId:proposal.fromCountryId;if(proposal.fromCountryId===state.selected||proposal.toCountryId===state.selected)state.relations[other]=Math.max(-100,Math.min(100,Number(state.relations[other]||0)+5));event('ДИПЛОМАТИЯ','Дипломатическая миссия согласована',proposal.fromCountryId+' и '+proposal.toCountryId+' подтвердили обмен дипломатическими миссиями.')}else if(['treaty','nonaggression','alliance','economic','ceasefire'].includes(proposal.type)){state.treaties=Array.isArray(state.treaties)?state.treaties:[];if(!state.treaties.includes(pair))state.treaties.push(pair);if(proposal.type==='ceasefire')state.wars=(state.wars||[]).filter(x=>x!==proposal.fromCountryId+'|'+proposal.toCountryId&&x!==proposal.toCountryId+'|'+proposal.fromCountryId);event('ДИПЛОМАТИЯ','Соглашение вступило в силу',proposal.title+': '+proposal.fromCountryId+' — '+proposal.toCountryId+'. Условия: '+proposal.message+(proposal.response?' Ответная позиция: '+proposal.response:''))}}else{const label=proposal.status==='rejected'?'Предложение отклонено':'Получены встречные условия';event('ДИПЛОМАТИЯ',label,proposal.fromCountryId+' — '+proposal.toCountryId+'. '+(proposal.response||proposal.title))}}}catch(applyError){console.warn('Не удалось применить принятые дипломатические соглашения:',applyError.message)}}
 
-   commandOperations=Array.isArray(result.commandOperations)?result.commandOperations:[];
-   commandClarification=String(result.commandClarification||'').trim();
-   commandSummary=String(result.commandSummary||'').trim();
+   commandOperations=Array.isArray(commandPlan?.operations)&&commandPlan.operations.length?commandPlan.operations:(Array.isArray(result.commandOperations)?result.commandOperations:[]);
+   commandClarification=String(commandPlan?.clarification||result.commandClarification||'').trim();
+   commandSummary=String(commandPlan?.summary||result.commandSummary||'').trim();
    moveDate(weeks);
    state.currentPeriod={turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель'};
    state.aiWorldState=state.aiWorldState||{countries:{},lastSummary:''};
