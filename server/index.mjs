@@ -61,7 +61,7 @@ async function ask(system,user,maxTokens=1200){
  if(gemini){
   result=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
   if(!result){const reason=d.promptFeedback?.blockReason||d.candidates?.[0]?.finishReason||'empty response';throw new Error('Gemini не вернул текстовый ответ: '+reason+'.')}
-  console.log('[Gemini metrics]',JSON.stringify({elapsedMs:Date.now()-started,model:MODEL,usage:d.usageMetadata||null}));
+  console.log('[Gemini metrics]',JSON.stringify({elapsedMs:Date.now()-started,model:MODEL,finishReason:d.candidates?.[0]?.finishReason||null,usage:d.usageMetadata||null}));
  }else{
   if(groq)console.log('[Groq metrics]',JSON.stringify({elapsedMs:Date.now()-started,model:MODEL,metadata:d.metadata||null,usage:d.usage||null}));
   result=d.choices?.[0]?.message?.content;
@@ -166,8 +166,15 @@ app.post('/api/ai/world-turn',async(req,res)=>{
   const diplomaticContext=b.diplomaticContext&&typeof b.diplomaticContext==='object'?{messages:(b.diplomaticContext.messages||[]).slice(-20).map(m=>({fromCountryId:clean(m.fromCountryId,90),toCountryId:clean(m.toCountryId,90),message:clean(m.message,1000)})),proposals:(b.diplomaticContext.proposals||[]).slice(-20).map(x=>({fromCountryId:clean(x.fromCountryId,90),toCountryId:clean(x.toCountryId,90),type:clean(x.type,80),title:clean(x.title,140),message:clean(x.message,1200),status:clean(x.status,30),response:clean(x.response,1000)}))}:null;if(diplomaticContext&&(diplomaticContext.messages.length||diplomaticContext.proposals.length))prompt+='\n\nДИПЛОМАТИЧЕСКАЯ ПЕРЕПИСКА И СОГЛАСОВАННЫЕ ПРЕДЛОЖЕНИЯ ИГРОКОВ: учитывай контекст и реальные формулировки; не считай предложение подписанным до статуса accepted; не игнорируй отказ или встречные условия. Переписка конфиденциальна: не публикуй её текст и не раскрывай содержание третьим странам; публично отражай только официально объявленные итоги, например факт принятого договора. Если ИИ-государство инициирует публичное дипломатическое действие в отношении страны игрока, отрази его в actions с targetCountryId страны игрока.\n'+JSON.stringify(diplomaticContext);
   const aiStarted=Date.now();
   let raw;
-  try{raw=await ask(worldSystem,prompt,2000)}finally{aiElapsedMs=Date.now()-aiStarted}
-  const result=parse(raw);
+  try{raw=await ask(worldSystem,prompt,3500)}finally{aiElapsedMs=Date.now()-aiStarted}
+  let result;
+  try{result=parse(raw)}catch(parseError){
+   console.error('[World turn JSON invalid]',JSON.stringify({message:clean(parseError.message,220),outputChars:raw.length,tail:clean(raw.slice(-500),500)}));
+   const repairSystem='Ты — валидатор JSON. Исправь ТОЛЬКО синтаксис переданного JSON, не меняй факты, числа, даты, названия, формулировки и структуру данных. Не сокращай массивы и строки. Верни только один корректный JSON-объект без Markdown и пояснений. Если исходный ответ оборван, восстанови только закрывающие кавычки/скобки и заверши последний неполный элемент минимально, не выдумывая новые события.';
+   const repaired=await ask(repairSystem,'Исправь синтаксис этого ответа.\n'+raw,2600);
+   result=parse(repaired);
+   console.log('[World turn JSON repair]',JSON.stringify({repaired:true,originalChars:raw.length,repairedChars:repaired.length}));
+  }
   result.playerReport=clean(result.playerReport,9000);
   result.countryReports=(Array.isArray(result.countryReports)?result.countryReports:[]).filter(r=>r&&allowed.has(r.countryId)).map(r=>{
    const out={countryId:r.countryId};
