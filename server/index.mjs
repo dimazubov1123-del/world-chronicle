@@ -8,7 +8,8 @@ const app=express();
 app.set('trust proxy',1);
 const PORT=process.env.PORT||8080;
 const ORIGIN=(process.env.CORS_ORIGIN||'').split(',').map(x=>x.trim()).filter(Boolean);
-const MODEL=process.env.OPENROUTER_MODEL||'openrouter/free';
+const PROVIDER=(process.env.AI_PROVIDER||'openrouter').toLowerCase();
+const MODEL=PROVIDER==='groq'?(process.env.GROQ_MODEL||'openai/gpt-oss-120b'):(process.env.OPENROUTER_MODEL||'openrouter/free');
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 
 app.use(cors({origin(origin,cb){if(!origin||!ORIGIN.length||ORIGIN.includes(origin))return cb(null,true);cb(new Error('Origin not allowed'));}}));
@@ -20,14 +21,19 @@ app.get('/index.html',(_req,res)=>res.sendFile(path.join(ROOT,'index.html')));
 app.get('/app.js',(_req,res)=>res.sendFile(path.join(ROOT,'app.js')));
 app.get('/turn-system.js',(_req,res)=>res.sendFile(path.join(ROOT,'turn-system.js')));
 app.get('/styles.css',(_req,res)=>res.sendFile(path.join(ROOT,'styles.css')));
-app.get('/health',(_req,res)=>res.json({ok:true,service:'world-chronicle',configured:Boolean(process.env.OPENROUTER_API_KEY),model:MODEL,hosting:'railway'}));
+app.get('/health',(_req,res)=>res.json({ok:true,service:'world-chronicle',provider:PROVIDER,configured:Boolean(PROVIDER==='groq'?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY),model:MODEL,hosting:'railway'}));
 
 const clean=(v,n=4000)=>String(v??'').slice(0,n);
 async function ask(system,user,maxTokens=1200){
- if(!process.env.OPENROUTER_API_KEY){const e=new Error('На сервере не задан OPENROUTER_API_KEY.');e.status=503;throw e}
+ const groq=PROVIDER==='groq';
+ const apiKey=groq?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY;
+ if(!apiKey){const e=new Error(groq?'На сервере не задан GROQ_API_KEY.':'На сервере не задан OPENROUTER_API_KEY.');e.status=503;throw e}
  const body={model:MODEL,temperature:.72,max_tokens:maxTokens,messages:[{role:'system',content:system},{role:'user',content:user}]};
- if(MODEL.startsWith('nvidia/'))body.provider={only:['nvidia'],allow_fallbacks:false};
- const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.OPENROUTER_API_KEY,'Content-Type':'application/json','HTTP-Referer':process.env.SITE_URL||'https://world-chronicle-production.up.railway.app/','X-Title':'World Chronicle'},body:JSON.stringify(body)});
+ if(!groq&&MODEL.startsWith('nvidia/'))body.provider={only:['nvidia'],allow_fallbacks:false};
+ const headers={Authorization:'Bearer '+apiKey,'Content-Type':'application/json'};
+ if(!groq){headers['HTTP-Referer']=process.env.SITE_URL||'https://world-chronicle-production.up.railway.app/';headers['X-Title']='World Chronicle';}
+ const endpoint=groq?'https://api.groq.com/openai/v1/chat/completions':'https://openrouter.ai/api/v1/chat/completions';
+ const r=await fetch(endpoint,{method:'POST',headers,body:JSON.stringify(body)});
  const d=await r.json().catch(()=>({}));
  if(!r.ok){const e=new Error(d.error?.message||'AI provider error '+r.status);e.status=r.status===429?429:502;throw e}
  const c=d.choices?.[0]?.message?.content;if(!c)throw new Error('ИИ не вернул ответ.');return c
