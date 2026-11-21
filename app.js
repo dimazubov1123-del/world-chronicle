@@ -255,7 +255,7 @@ function loadRegions(){
    ];
    (async()=>{
     let boundaryIndex=[];
-    try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok)boundaryIndex=await metaResponse.json()}catch(e){}
+    try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok){const metaData=await metaResponse.json();boundaryIndex=Array.isArray(metaData)?metaData:[]}}catch(e){}
     const fallbackGeo={AND:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/AND/ADM1/geoBoundaries-AND-ADM1_simplified.geojson',LIE:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LIE/ADM1/geoBoundaries-LIE-ADM1_simplified.geojson',LUX:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LUX/ADM1/geoBoundaries-LUX-ADM1_simplified.geojson',SMR:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/SMR/ADM1/geoBoundaries-SMR-ADM1_simplified.geojson',MLT:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/MLT/ADM1/geoBoundaries-MLT-ADM1_simplified.geojson'};
     const microstates=new Set(['AND','LIE','LUX','MCO','SMR','MLT','VAT']);
     const countryByIso=new Map((window.__wcCountryFeatures||[]).map(f=>{const p=f.properties||{},iso=String(p.ADM0_A3||p.ISO_A3||p.iso_a3||'').toUpperCase(),id=String(p.ADMIN||p.admin||p.name||p.NAME||'');return [iso,id]}).filter(x=>x[0]&&x[1]));
