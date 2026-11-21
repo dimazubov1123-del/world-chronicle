@@ -157,9 +157,9 @@ app.post('/api/ai/order',route('Ты — штабной аналитик игр�
 const multiplayerRooms=new Map();
 const roomCode=()=>randomBytes(4).toString('hex').slice(0,6).toUpperCase();
 const roomToken=()=>randomBytes(24).toString('hex');
-const publicRoom=room=>({code:room.code,name:room.name,scenario:room.scenario,maxPlayers:room.maxPlayers,access:room.access,turn:room.turn,phase:room.phase,players:room.players.map(p=>({id:p.id,name:p.name,countryId:p.countryId,host:p.host,ready:p.ready,online:true})),createdAt:room.createdAt});
+const publicRoom=room=>({code:room.code,name:room.name,scenario:room.scenario,maxPlayers:room.maxPlayers,access:room.access,turn:room.turn,phase:room.phase,players:room.players.map(p=>({id:p.id,name:p.name,countryId:p.countryId,host:p.host,ready:p.ready,online:Date.now()-(p.lastSeen||0)<12000})),createdAt:room.createdAt});
 const findRoom=(req,res)=>{const room=multiplayerRooms.get(String(req.params.code||'').toUpperCase());if(!room){res.status(404).json({error:'Комната не найдена или сервер был перезапущен.'});return null}room.lastActivity=Date.now();return room};
-const findPlayer=(room,token)=>room.players.find(p=>p.token&&p.token===String(token||''));
+const findPlayer=(room,token)=>{const p=room.players.find(p=>p.token&&p.token===String(token||''));if(p)p.lastSeen=Date.now();return p};
 app.get('/api/rooms',(_req,res)=>{
  const now=Date.now();for(const [code,r] of multiplayerRooms)if(now-r.lastActivity>12*60*60*1000)multiplayerRooms.delete(code);
  res.json({rooms:Array.from(multiplayerRooms.values()).filter(r=>r.access==='public'&&r.phase!=='closed'&&r.players.length<r.maxPlayers).map(publicRoom).slice(0,50)});
@@ -169,7 +169,7 @@ app.post('/api/rooms', (req,res)=>{
  if(!name)return res.status(400).json({error:'Укажите название кампании.'});
  if(Array.from(multiplayerRooms.values()).filter(r=>r.phase!=='closed').length>=200)return res.status(503).json({error:'Сервер комнат временно перегружен.'});
  let code;do{code=roomCode()}while(multiplayerRooms.has(code));
- const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:true,ready:false,order:''};
+ const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:true,ready:false,order:'',lastSeen:Date.now()};
  const room={code,name,scenario,maxPlayers,access,hostId:player.id,players:[player],turn:1,phase:'lobby',weeks:1,snapshot:b.snapshot&&typeof b.snapshot==='object'?b.snapshot:null,createdAt:new Date().toISOString(),lastActivity:Date.now(),revision:1};
  multiplayerRooms.set(code,room);res.status(201).json({room:publicRoom(room),token:player.token,playerId:player.id});
 });
@@ -179,7 +179,7 @@ app.post('/api/rooms/:code/join',(req,res)=>{
  if(room.players.length>=room.maxPlayers)return res.status(409).json({error:'В комнате нет свободных мест.'});
  const playerName=clean(b.playerName,24).trim()||'Игрок',countryId=clean(b.countryId,90).trim()||'Russia';
  if(room.players.some(p=>p.countryId===countryId))return res.status(409).json({error:'Это государство уже выбрал другой участник.'});
- const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:false,ready:false,order:''};room.players.push(player);room.revision++;
+ const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:false,ready:false,order:'',lastSeen:Date.now()};room.players.push(player);room.revision++;
  res.status(201).json({room:publicRoom(room),token:player.token,playerId:player.id});
 });
 app.get('/api/rooms/:code',(req,res)=>{
@@ -200,7 +200,7 @@ app.post('/api/rooms/:code/begin',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player||!player.host)return res.status(403).json({error:'Только ведущий может начать расчёт хода.'});
  if(room.phase!=='lobby')return res.status(409).json({error:'Ход уже рассчитывается.'});
  if(room.players.length<2)return res.status(409).json({error:'Для сетевого хода нужен хотя бы один второй участник.'});
- const unready=room.players.filter(p=>!p.ready);if(unready.length)return res.status(409).json({error:'Не все участники подтвердили готовность.'});
+ const unready=room.players.filter(p=>!p.ready||Date.now()-(p.lastSeen||0)>12000);if(unready.length)return res.status(409).json({error:'Не все участники подтвердили готовность.'});
  room.phase='resolving';room.revision++;res.json({ok:true,orders:room.players.map(p=>({playerId:p.id,name:p.name,countryId:p.countryId,order:p.order})),room:publicRoom(room)});
 });
 app.post('/api/rooms/:code/complete',(req,res)=>{
