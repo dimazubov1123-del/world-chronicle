@@ -116,7 +116,7 @@ function renderNewsDrawer(period){
  const selected=items.find(x=>x.id===wcNewsSelectedId)||items[0];wcNewsSelectedId=selected.id;
  const selectedButton=Array.from(list.children).find(x=>x.querySelector('b')?.textContent===selected.title);selectedButton?.classList.add('active');
  renderNewsArticle(selected);
- const count=$('wc-news-total');if(count)count.textContent=String(items.length).padStart(2,'0');
+ const count=$('wc-news-total');if(count)count.textContent=String(items.length).padStart(2,'0');const caption=$('wc-news-period-caption');if(caption){const latest=archive.find(x=>String(x.turn)===String(wcNewsPeriod))||archive[0];caption.textContent=wcNewsPeriod==='all'?'Полная хронология кампании':latest?(latest.label+' · '+latest.startDate+' — '+latest.endDate):'События текущего хода'}
 }
 function openNewsDrawer(period='current'){
  const drawer=$('wc-news-drawer');if(!drawer)return;
@@ -130,7 +130,7 @@ function event(category,title,description,details={}){
  const item={id:d.id||'EV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),category:String(category||'МИРОВЫЕ СОБЫТИЯ'),title:String(title||'Событие'),description:String(description||''),date:wcNewsDate(d.date||dateText()),periodTurn:Number(d.periodTurn??state.turn)||1,periodStart:String(d.periodStart||state.currentPeriod?.startDate||''),periodEnd:String(d.periodEnd||state.currentPeriod?.endDate||''),periodLabel:String(d.periodLabel||state.currentPeriod?.label||''),subtitle:String(d.subtitle||'').slice(0,300),lead:String(d.lead||'').slice(0,1000),article:String(d.article||'').slice(0,9000),location:String(d.location||'').slice(0,160),background:String(d.background||'').slice(0,1800),development:String(d.development||'').slice(0,2400),consequences:String(d.consequences||'').slice(0,1800),reaction:String(d.reaction||'').slice(0,1400),importance:d.importance==='major'?'major':'normal'};
  state.events.unshift(item);state.events=state.events.slice(0,500);
  const list=$('news-list');if(list){list.innerHTML='';state.events.slice(0,7).forEach(e=>{const node=document.createElement('article');node.className='news-item';const tag=e.category==='ДИПЛОМАТИЯ'?'gold':e.category==='ЭКОНОМИКА'?'blue':e.category==='ВОЕННОЕ ДЕЛО'?'red':'gold';node.innerHTML='<div class="news-meta"><span class="news-tag '+tag+'">'+wcNewsEsc(e.category)+'</span><time>'+wcNewsEsc(e.date)+'</time></div><h3></h3><p></p>';node.querySelector('h3').textContent=e.title;node.querySelector('p').textContent=e.lead||e.description;list.append(node)})}
- $('event-count').textContent=String(state.events.length).padStart(2,'0');
+ $('event-count').textContent=String(state.events.length).padStart(2,'0');if($('pax-events-count'))$('pax-events-count').textContent=String(state.events.length);
  const important=item.importance==='major'||/выбор|правительств|парламент|закон:|указ:|обращение к нации|войн|мобилиз|напад|пакт о ненападении|торговое соглашение|кризис|переворот|аннекс|капитуляц|сформирована парламентская коалиц|состоялись общенациональные/i.test(item.category+' '+item.title);
  if($('wc-news-drawer')?.classList.contains('open'))renderNewsDrawer(wcNewsPeriod);
  if(important&&!window.__replayingEvents&&window.openNewsDrawer)openNewsDrawer(item.periodTurn);
@@ -231,7 +231,7 @@ function loadRegions(){
      ['BEL','Belgium'],['NLD','Netherlands'],['CHE','Switzerland'],['AUT','Austria'],['CZE','Czechia'],['SVK','Slovakia'],
      ['SVN','Slovenia'],['HRV','Croatia'],['SRB','Serbia'],['MNE','Montenegro'],['ALB','Albania'],['MKD','North Macedonia'],
      ['BIH','Bosnia and Herzegovina'],['EST','Estonia'],['LVA','Latvia'],['LTU','Lithuania'],['IRL','Ireland'],
-     ['DNK','Denmark'],['ISL','Iceland'],['CYP','Cyprus'],['BGR','Bulgaria'],['HUN','Hungary'],['ROU','Romania'],['PRT','Portugal'],['GRC','Greece']
+     ['DNK','Denmark'],['ISL','Iceland'],['CYP','Cyprus'],['BGR','Bulgaria'],['HUN','Hungary'],['ROU','Romania'],['PRT','Portugal'],['GRC','Greece'],['DEU','Germany'],['FRA','France'],['POL','Poland'],['UKR','Ukraine'],['ITA','Italy'],['ESP','Spain'],['GBR','United Kingdom'],['NOR','Norway'],['SWE','Sweden'],['FIN','Finland']
     ];
     let boundaryIndex=[];
     try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok)boundaryIndex=await metaResponse.json()}catch(e){}
