@@ -18,9 +18,75 @@ const $=id=>document.getElementById(id),fmt=n=>Math.round(n).toLocaleString('ru-
 function dateText(){return state.day+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][state.month]+' '+state.year}
 function updateUI(){$('date-label').textContent=dateText();$('turn-label').textContent='ХОД '+String(state.turn).padStart(3,'0');$('treasury-top').textContent='₽ '+fmt(state.treasury)+' млрд';$('prestige-top').textContent=fmt(state.prestige);$('stability').textContent=fmt(state.stability)+'%';$('economy').textContent='Индекс '+fmt(state.gdp);$('military').textContent=fmt(state.army)+' тыс.'}
 function event(category,title,description){state.events.unshift({category,title,description,date:dateText()});state.events=state.events.slice(0,12);const list=$('news-list');list.innerHTML='';state.events.slice(0,7).forEach(e=>{const a=document.createElement('article');a.className='news-item';const tag=e.category==='ДИПЛОМАТИЯ'?'gold':e.category==='ЭКОНОМИКА'?'blue':e.category==='ВОЕННОЕ ДЕЛО'?'red':'gold';a.innerHTML='<div class="news-meta"><span class="news-tag '+tag+'">'+e.category+'</span><time>'+e.date+'</time></div><h3></h3><p></p>';a.querySelector('h3').textContent=e.title;a.querySelector('p').textContent=e.description;list.append(a)});$('event-count').textContent=String(state.events.length).padStart(2,'0')}
-function selectCountry(id,feature){const c=countries[id]||{name:id,capital:'Не определена',flag:'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};state.selected=id;$('country-name').textContent=c.name;$('country-capital').textContent='Столица: '+c.capital;$('country-flag').textContent=c.flag;$('population').textContent=c.population;$('economy').textContent=c.economy;$('stability').textContent=c.stability+'%';$('military').textContent=c.military;$('map-hint').textContent='Выбрано: '+c.name;if(state.geoLayer)state.geoLayer.setStyle(styleFeature);if(feature&&window.map){const b=L.geoJSON(feature).getBounds();if(b.isValid())map.fitBounds(b,{padding:[45,45],maxZoom:5})}}
+function selectCountry(id,feature,displayName,displayFlag){const base=countries[id]||{name:displayName||id,capital:'Не определена',flag:displayFlag||'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};const c={...base,name:displayName||base.name,flag:displayFlag||base.flag};state.selected=id;$('country-name').textContent=c.name;$('country-capital').textContent='Столица: '+c.capital;$('country-flag').textContent=c.flag;$('population').textContent=c.population;$('economy').textContent=c.economy;$('stability').textContent=c.stability+'%';$('military').textContent=c.military;$('map-hint').textContent='Выбрано: '+c.name;if(state.geoLayer)state.geoLayer.setStyle(styleFeature);if(feature&&window.map){const b=L.geoJSON(feature).getBounds();if(b.isValid())map.fitBounds(b,{padding:[45,45],maxZoom:5})}if(typeof refreshMapLabels==='function')refreshMapLabels()}
 function styleFeature(f){const name=f.properties.ADMIN||f.properties.name||'';return{color:state.selected===name?'#e2c17d':'#63758a',weight:state.selected===name?1.7:.65,opacity:.9,fillColor:state.selected===name?'#b99a60':'#26394e',fillOpacity:state.selected===name?.78:.48}}
-let map=null,labelsLayer=null;if(window.L){map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2}).setView([24,12],2);L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(map);labelsLayer=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,opacity:.7}).addTo(map);fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson').then(r=>{if(!r.ok)throw Error('GeoJSON unavailable');return r.json()}).then(data=>{state.geoLayer=L.geoJSON(data,{style:styleFeature,onEachFeature:(f,l)=>{const name=f.properties.ADMIN||f.properties.name||'Государство';l.bindTooltip(name,{sticky:true,className:'country-tooltip'});l.on('click',()=>selectCountry(name,f));l.on('mouseover',()=>{if(name!==state.selected)l.setStyle({weight:1.4,color:'#b6c2d0',fillOpacity:.7})});l.on('mouseout',()=>state.geoLayer.resetStyle(l))}}).addTo(map)}).catch(()=>$('map-hint').textContent='Не удалось загрузить границы стран — проверьте интернет.')}
+const RU_COUNTRY_NAMES={RU:'Россия',US:'США',GB:'Великобритания',KR:'Южная Корея',KP:'КНДР',CZ:'Чехия',TR:'Турция',IR:'Иран',SY:'Сирия',TW:'Тайвань',CD:'ДР Конго',CG:'Республика Конго',CI:'Кот-д’Ивуар',BO:'Боливия',VE:'Венесуэла',TZ:'Танзания',MD:'Молдова',PS:'Палестина',VA:'Ватикан',XK:'Косово'};
+const ruDisplayNames=typeof Intl!=='undefined'&&Intl.DisplayNames?new Intl.DisplayNames(['ru'],{type:'region'}):null;
+function getCountryInfo(feature){
+ const p=feature.properties||{},code=String(p.ISO_A2||p.ISO_A2_EH||p.iso_a2||'').toUpperCase();
+ const original=p.ADMIN||p.name||p.NAME||'Государство';
+ let name=RU_COUNTRY_NAMES[code];
+ if(!name&&/^[A-Z]{2}$/.test(code)&&ruDisplayNames){try{name=ruDisplayNames.of(code)}catch(e){}}
+ if(!name||name===code)name=original;
+ let flag='🏳️';
+ if(/^[A-Z]{2}$/.test(code)&&code!=='-99')flag=Array.from(code).map(ch=>String.fromCodePoint(127397+ch.charCodeAt(0))).join('');
+ if(code==='XK')flag='🇽🇰';
+ return{id:original,name,flag,code};
+}
+function escapeMapText(value){return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+let map=null,labelLayer=null,canvasRenderer=null,countryMeta=[],labelMarkers=new Map();
+if(window.L){
+ map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxZoom:8,preferCanvas:true,zoomSnap:.5,zoomDelta:.5,wheelDebounceTime:80,wheelPxPerZoomLevel:100,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false}).setView([24,12],2);
+ canvasRenderer=L.canvas({padding:.35});
+ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
+  subdomains:'abcd',maxZoom:8,attribution:'© OpenStreetMap © CARTO',updateWhenIdle:true,updateWhenZooming:false,keepBuffer:1,detectRetina:false
+ }).addTo(map);
+ labelLayer=L.layerGroup().addTo(map);
+ function refreshMapLabels(){
+  if(!map||!state.labels||!labelLayer)return;
+  const zoom=map.getZoom(),view=map.getBounds(),needed=new Set();
+  for(const item of countryMeta){
+   if(!view.intersects(item.bounds))continue;
+   const width=item.bounds.getEast()-item.bounds.getWest(),height=item.bounds.getNorth()-item.bounds.getSouth(),area=width*height;
+   if(zoom<2.8&&area<34)continue;
+   if(zoom<3.5&&area<4.5)continue;
+   const compact=zoom<3.5&&area<13;
+   const key=item.info.id;needed.add(key);
+   const selected=state.selected===key;
+   const html='<span class="flag">'+item.info.flag+'</span>'+(compact?'':'<span class="name">'+escapeMapText(item.info.name)+'</span>');
+   const className='wc-map-label'+(compact?' compact':'')+(selected?' selected':'');
+   let marker=labelMarkers.get(key);
+   if(!marker){
+    marker=L.marker(item.center,{interactive:false,keyboard:false,zIndexOffset:selected?900:400,icon:L.divIcon({className:'wc-country-marker',html:'<span class="'+className+'">'+html+'</span>',iconSize:[0,0],iconAnchor:[0,0]})});
+    labelMarkers.set(key,marker);marker.addTo(labelLayer);
+   }else{
+    const nextIcon=L.divIcon({className:'wc-country-marker',html:'<span class="'+className+'">'+html+'</span>',iconSize:[0,0],iconAnchor:[0,0]});
+    marker.setIcon(nextIcon);marker.setZIndexOffset(selected?900:400);
+    if(!labelLayer.hasLayer(marker))marker.addTo(labelLayer);
+   }
+  }
+  for(const [key,marker] of labelMarkers){if(!needed.has(key)){labelLayer.removeLayer(marker);labelMarkers.delete(key)}}
+ }
+ window.refreshMapLabels=refreshMapLabels;
+ map.on('moveend zoomend',refreshMapLabels);
+ fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson',{cache:'force-cache'})
+  .then(r=>{if(!r.ok)throw Error('GeoJSON unavailable');return r.json()})
+  .then(data=>{
+   state.geoLayer=L.geoJSON(data,{
+    renderer:canvasRenderer,style:styleFeature,smoothFactor:2.4,interactive:true,bubblingMouseEvents:false,
+    onEachFeature:(feature,layer)=>{
+     const info=getCountryInfo(feature),bounds=layer.getBounds();
+     if(bounds&&bounds.isValid())countryMeta.push({info,bounds,center:bounds.getCenter()});
+     layer.on('click',()=>selectCountry(info.id,feature,info.name,info.flag));
+    }
+   }).addTo(map);
+   refreshMapLabels();
+   $('map-hint').textContent='Флаги и названия стран отображаются на карте. Нажмите на страну для подробностей.';
+  })
+  .catch(()=>$('map-hint').textContent='Не удалось загрузить границы стран — проверьте интернет.');
+ requestAnimationFrame(()=>map.invalidateSize({pan:false}));
+ window.addEventListener('resize',()=>map.invalidateSize({pan:false}),{passive:true});
+}
 function modal(title,html){$('modal-title').textContent=title;$('modal-content').innerHTML=html;$('modal-backdrop').classList.remove('hidden')}function closeModal(){$('modal-backdrop').classList.add('hidden')}
 function save(){const copy={...state,geoLayer:null};localStorage.setItem(SAVE_KEY,JSON.stringify(copy));$('advisor-text').textContent='Кампания сохранена в этом браузере.'}
 function load(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return false;Object.assign(state,s);state.geoLayer=null;selectCountry(state.selected||'Russia');state.events=[];(s.events||[]).slice().reverse().forEach(e=>event(e.category,e.title,e.description));updateUI();return true}catch(e){return false}}
@@ -41,7 +107,7 @@ function speech(){modal('Обращение к нации','<p>Подготов�
 function syncTimer(){if(window.gameTimer)clearInterval(window.gameTimer);if(!state.paused)window.gameTimer=setInterval(advanceTurn,Math.max(2500,15000/state.speed))}
 $('choose-country').onclick=countryPicker;$('scenario-select').onchange=e=>resetCampaign(e.target.value);$('next-turn').onclick=advanceTurn;$('pause-button').onclick=()=>{state.paused=!state.paused;$('pause-button').classList.toggle('paused',state.paused);$('pause-button').textContent=state.paused?'Ⅱ ПАУЗА':'▶ ИГРА';syncTimer();save()};
 document.querySelectorAll('.speed-button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.speed-button').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.speed=Number(b.dataset.speed);syncTimer()});
-$('reset-map').onclick=()=>map&&map.setView([24,12],2);$('labels-toggle').onclick=()=>{state.labels=!state.labels;$('labels-toggle').classList.toggle('active',state.labels);if(!map)return;if(state.labels)labelsLayer.addTo(map);else map.removeLayer(labelsLayer)};
+$('reset-map').onclick=()=>map&&map.setView([24,12],2);$('labels-toggle').onclick=()=>{state.labels=!state.labels;$('labels-toggle').classList.toggle('active',state.labels);if(!map||!labelLayer)return;if(state.labels){labelLayer.addTo(map);refreshMapLabels()}else labelLayer.clearLayers()};
 $('political-view').onclick=()=>event('ПОЛИТИКА','Политическая карта активна','Отображаются государственные границы и территории.');
 $('help-btn').onclick=()=>modal('World Chronicle — справка','<p>Вы руководите государством в альтернативной исторической песочнице. Один ход равен одной неделе. Решения меняют казну, экономику, стабильность, престиж и военную мощь.</p><p>Кампания автоматически сохраняется в локальном хранилище этого браузера. Используйте разделы слева для управления страной.</p>');
 $('modal-close').onclick=closeModal;$('modal-backdrop').onclick=e=>{if(e.target===$('modal-backdrop'))closeModal()};
