@@ -95,6 +95,10 @@
    (result.actions||[]).forEach(a=>{
     if(!a?.countryId||a.countryId===state.selected)return;
     const target=a.targetCountryId;
+    if(target&&(a.type==='treaty'||(a.type==='relation'&&Number(a.delta)>0))&&(target===state.selected||(net&&roomPlayers.some(p=>p.countryId===target)))){
+     if(!net&&target===state.selected){state.diplomaticInbox=Array.isArray(state.diplomaticInbox)?state.diplomaticInbox:[];const type=a.type==='relation'?'embassy':'treaty';if(!state.diplomaticInbox.some(x=>x.status==='pending'&&x.fromCountryId===a.countryId&&x.type===type)){const actor=(base.countries||[]).find(c=>c.id===a.countryId);const message=type==='embassy'?'Правительство предлагает направить дипломатическую миссию для улучшения двусторонних отношений.':'Правительство предлагает начать оформление двустороннего международного договора.';state.diplomaticInbox.push({id:'ai-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),fromCountryId:a.countryId,type,title:type==='embassy'?'Предложение об обмене дипломатическими миссиями':'Предложение о международном договоре',message,status:'pending',createdAt:new Date().toISOString()});event('ДИПЛОМАТИЯ','Иностранное правительство направило предложение', (actor?.name||a.countryId)+': '+message,{importance:'normal'})}}
+     return;
+    }
     if(a.type==='relation'&&target){
      const delta=Math.max(-8,Math.min(8,Number(a.delta)||0));
      if(target===state.selected)state.relations[a.countryId]=Math.max(-100,Math.min(100,Number(state.relations[a.countryId]||0)+delta));
