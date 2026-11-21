@@ -149,7 +149,8 @@ app.post('/api/ai/world-turn',async(req,res)=>{
  }catch(e){res.status(e.status||502).json({error:clean(e.message,700)})}
 });
 
-app.post('/api/ai/diplomacy',route('Ты — публично выступающее правительство иностранного государства в геополитической стратегии. Отвечай от лица указанной страны, учитывай интересы, отношения, обстановку и сообщение игрока. Можешь отказать, торговаться и предлагать условия. Не раскрывай закрытые сведения. Верни только JSON {"reply":"развёрнутый официальный ответ до 1600 символов","relationDelta":целое от -5 до 5}.',b=>JSON.stringify({countryId:clean(b.countryId,80),countryName:clean(b.countryName,100),message:clean(b.message,2000),history:(b.history||[]).slice(-8),world:b.world||{}}),900));
+app.post('/api/ai/diplomacy',route('Ты — правительство иностранного государства в геополитической стратегии. Отвечай как реальный дипломатический собеседник, оценивая интересы, отношения, ситуацию, текст предложения и историю переговоров. Если игрок предлагает посольство или улучшение отношений, оценивай это отдельно от договора. Не соглашайся автоматически: можешь принять, отказать, запросить уточнения или выдвинуть встречные условия. Решение должно быть последовательным и обоснованным. Не раскрывай закрытые сведения и не выдумывай уже подписанные документы. Верни строго JSON {"reply":"официальный ответ до 1400 символов","relationDelta":целое от -5 до 5,"decision":"accept|reject|negotiate|none","proposalStatus":"accepted|rejected|counteroffer|pending|none","advisorMessage":"короткое уведомление советника игрока до 500 символов"}.',b=>JSON.stringify({countryId:clean(b.countryId,80),countryName:clean(b.countryName,100),message:clean(b.message,2000),proposalType:clean(b.proposalType,80),isProposal:!!b.isProposal,history:(b.history||[]).slice(-8),world:b.world||{}}),1100));
+app.post('/api/ai/advisor-chat',route('Ты — личный государственный советник игрока в стратегии World Chronicle. Отвечай на его вопрос, используя переданное состояние страны, мировую обстановку и историю разговора. Различай подтверждённые факты, вероятные оценки и неизвестные сведения. Не раскрывай секретные данные и не выдумывай цифры, договоры, события или действия других стран. Давай практичные рекомендации и объясняй риски. Верни строго JSON {"answer":"ответ советника на русском до 2200 символов","notification":"короткая дополнительная рекомендация или пустая строка"}.',b=>JSON.stringify({question:clean(b.question,1600),history:(b.history||[]).slice(-10),world:b.world||{},inbox:(b.inbox||[]).slice(-8)}),1100));
 app.post('/api/ai/advisor',route('Ты — стратегический советник главы государства. Подготовь содержательный аналитический доклад: внутренняя обстановка, экономика, армия, дипломатические риски, открытые мировые события и приоритетные шаги. Не выдумывай показатели. Только JSON {"advice":"доклад на русском до 3000 символов"}.',b=>JSON.stringify(compactWorld(b)),1400));
 app.post('/api/ai/order',route('Ты — штабной аналитик игры. Разбери свободный приказ и сформулируй реалистичный план с этапами, ресурсными ограничениями, рисками и ожидаемыми последствиями. Не исполняй и не меняй показатели. Только JSON {"initiative":"формулировка","explanation":"подробное объяснение и этапы"}.',b=>JSON.stringify({order:clean(b.order,2000),world:b.world||{}}),900));
 
@@ -170,7 +171,7 @@ app.post('/api/rooms', (req,res)=>{
  if(Array.from(multiplayerRooms.values()).filter(r=>r.phase!=='closed').length>=200)return res.status(503).json({error:'Сервер комнат временно перегружен.'});
  let code;do{code=roomCode()}while(multiplayerRooms.has(code));
  const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:true,ready:false,order:'',lastSeen:Date.now()};
- const room={code,name,scenario,maxPlayers,access,hostId:player.id,players:[player],turn:1,phase:'lobby',weeks:1,snapshot:b.snapshot&&typeof b.snapshot==='object'?b.snapshot:null,createdAt:new Date().toISOString(),lastActivity:Date.now(),revision:1};
+ const room={code,name,scenario,maxPlayers,access,hostId:player.id,players:[player],chat:[],diplomacyMessages:[],proposals:[],notifications:{},turn:1,phase:'lobby',weeks:1,snapshot:b.snapshot&&typeof b.snapshot==='object'?b.snapshot:null,createdAt:new Date().toISOString(),lastActivity:Date.now(),revision:1};
  multiplayerRooms.set(code,room);res.status(201).json({room:publicRoom(room),token:player.token,playerId:player.id});
 });
 app.post('/api/rooms/:code/join',(req,res)=>{
@@ -179,7 +180,7 @@ app.post('/api/rooms/:code/join',(req,res)=>{
  if(room.players.length>=room.maxPlayers)return res.status(409).json({error:'В комнате нет свободных мест.'});
  const playerName=clean(b.playerName,24).trim()||'Игрок',countryId=clean(b.countryId,90).trim()||'Russia';
  if(room.players.some(p=>p.countryId===countryId))return res.status(409).json({error:'Это государство уже выбрал другой участник.'});
- const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:false,ready:false,order:'',lastSeen:Date.now()};room.players.push(player);room.revision++;
+ const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:false,ready:false,order:'',lastSeen:Date.now()};room.players.push(player);room.notifications[player.id]=[];room.revision++;
  res.status(201).json({room:publicRoom(room),token:player.token,playerId:player.id});
 });
 app.get('/api/rooms/:code',(req,res)=>{
@@ -217,6 +218,60 @@ app.post('/api/rooms/:code/leave',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player)return res.status(403).json({error:'Неверный ключ участника.'});
  if(player.host){room.phase='closed';multiplayerRooms.delete(room.code)}else{room.players=room.players.filter(p=>p.id!==player.id);room.revision++}
  res.json({ok:true});
+});
+
+
+const socialId=()=>roomToken().slice(0,16);
+const notifyPlayer=(room,playerId,item)=>{if(!room.notifications)room.notifications={};room.notifications[playerId]=room.notifications[playerId]||[];room.notifications[playerId].push({...item,id:socialId(),createdAt:new Date().toISOString(),read:false});room.notifications[playerId]=room.notifications[playerId].slice(-100)};
+const socialPlayer=(room,token,res)=>{const p=findPlayer(room,token);if(!p)res.status(403).json({error:'Неверный ключ участника.'});return p};
+app.get('/api/rooms/:code/social',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const p=socialPlayer(room,req.query.token,res);if(!p)return;
+ const messages=(room.diplomacyMessages||[]).filter(m=>m.fromCountryId===p.countryId||m.toCountryId===p.countryId).slice(-100);
+ const proposals=(room.proposals||[]).filter(x=>x.fromCountryId===p.countryId||x.toCountryId===p.countryId).slice(-60);
+ res.json({chat:(room.chat||[]).slice(-100),messages,proposals,notifications:(room.notifications?.[p.id]||[]).slice(-60),players:room.players.map(x=>({id:x.id,name:x.name,countryId:x.countryId,online:Date.now()-(x.lastSeen||0)<12000}))});
+});
+app.post('/api/rooms/:code/chat',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ const message=clean(b.message,1200).trim();if(!message)return res.status(400).json({error:'Пустое сообщение.'});
+ const item={id:socialId(),playerId:p.id,playerName:p.name,countryId:p.countryId,message,createdAt:new Date().toISOString()};
+ room.chat=room.chat||[];room.chat.push(item);room.chat=room.chat.slice(-300);room.revision++;res.status(201).json({message:item});
+});
+app.post('/api/rooms/:code/diplomacy/messages',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ const toCountryId=clean(b.toCountryId,90).trim(),message=clean(b.message,1600).trim();
+ if(!toCountryId||toCountryId===p.countryId||!message)return res.status(400).json({error:'Укажите государство и текст сообщения.'});
+ const recipient=room.players.find(x=>x.countryId===toCountryId);if(!recipient)return res.status(404).json({error:'В выбранном государстве нет игрока. Для переговоров с ИИ используйте дипломатический канал ИИ.'});
+ const item={id:socialId(),fromPlayerId:p.id,fromPlayerName:p.name,fromCountryId:p.countryId,toPlayerId:recipient.id,toCountryId,message,createdAt:new Date().toISOString(),kind:'message'};
+ room.diplomacyMessages=room.diplomacyMessages||[];room.diplomacyMessages.push(item);room.diplomacyMessages=room.diplomacyMessages.slice(-300);
+ notifyPlayer(room,recipient.id,{type:'diplomacy_message',title:'Новое дипломатическое сообщение',body:p.countryId+': '+message.slice(0,260),fromCountryId:p.countryId,messageId:item.id});
+ room.revision++;res.status(201).json({message:item});
+});
+app.post('/api/rooms/:code/proposals',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ const toCountryId=clean(b.toCountryId,90).trim(),type=clean(b.type,80).trim()||'diplomatic',title=clean(b.title,140).trim(),message=clean(b.message,1800).trim();
+ if(!toCountryId||toCountryId===p.countryId||!message)return res.status(400).json({error:'Укажите государство и содержание инициативы.'});
+ const recipient=room.players.find(x=>x.countryId===toCountryId);if(!recipient)return res.status(404).json({error:'В выбранном государстве нет игрока. Для переговоров с ИИ отправьте инициативу через канал ИИ.'});
+ const proposal={id:socialId(),fromPlayerId:p.id,fromPlayerName:p.name,fromCountryId:p.countryId,toPlayerId:recipient.id,toCountryId,type,title:title||'Дипломатическая инициатива',message,status:'pending',response:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+ room.proposals=room.proposals||[];room.proposals.push(proposal);room.proposals=room.proposals.slice(-150);
+ notifyPlayer(room,recipient.id,{type:'proposal',title:'Дипломатическое предложение: '+proposal.title,body:p.countryId+' направляет инициативу. Изучите условия и ответьте.',proposalId:proposal.id,fromCountryId:p.countryId});
+ notifyPlayer(room,p.id,{type:'proposal_sent',title:'Предложение направлено',body:'Инициатива передана государству '+toCountryId+'. Ожидается ответ.',proposalId:proposal.id,toCountryId});
+ room.revision++;res.status(201).json({proposal});
+});
+app.post('/api/rooms/:code/proposals/:id/respond',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ const proposal=(room.proposals||[]).find(x=>x.id===req.params.id);if(!proposal)return res.status(404).json({error:'Предложение не найдено.'});
+ if(proposal.toCountryId!==p.countryId)return res.status(403).json({error:'Ответить на это предложение может только государство-получатель.'});
+ if(proposal.status!=='pending')return res.status(409).json({error:'По этому предложению уже принято решение.'});
+ const action=['accept','reject','counter'].includes(b.action)?b.action:'reject',response=clean(b.response,1600).trim();
+ proposal.status=action==='accept'?'accepted':action==='reject'?'rejected':'counteroffer';proposal.response=response;proposal.updatedAt=new Date().toISOString();proposal.respondedBy=p.id;
+ const labels={accepted:'ПРИНЯТО',rejected:'ОТКЛОНЕНО',counteroffer:'ВСТРЕЧНОЕ ПРЕДЛОЖЕНИЕ'};
+ notifyPlayer(room,proposal.fromPlayerId,{type:'proposal_result',title:'Ответ на дипломатическую инициативу: '+labels[proposal.status],body:p.countryId+': '+(response||labels[proposal.status]),proposalId:proposal.id,status:proposal.status,fromCountryId:p.countryId});
+ notifyPlayer(room,p.id,{type:'proposal_recorded',title:'Решение зарегистрировано',body:'Ваш ответ государству '+proposal.fromCountryId+' сохранён.',proposalId:proposal.id,status:proposal.status});
+ room.revision++;res.json({ok:true,proposal});
+});
+app.post('/api/rooms/:code/social/read',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ (room.notifications?.[p.id]||[]).forEach(n=>n.read=true);res.json({ok:true});
 });
 
 app.listen(PORT,'0.0.0.0',()=>console.log('World Chronicle Railway server listening on '+PORT));
