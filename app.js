@@ -48,10 +48,10 @@ async function runWorldAI(){
   (result.events||[]).slice(0,12).forEach(e=>{if(e&&e.title&&e.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ').slice(0,32),String(e.title).slice(0,180),String(e.description).slice(0,1800))});
   (result.actions||[]).slice(0,80).forEach(a=>{
    if(!a||!a.countryId||a.countryId===state.selected||!countryMeta.some(x=>x.info.id===a.countryId))return;
-   const target=a.targetCountryId;
-   if(a.type==='relation'&&target&&target!==state.selected&&countryMeta.some(x=>x.info.id===target)&&Number.isFinite(Number(a.delta)))state.relations[target]=Math.max(-100,Math.min(100,Number(state.relations[target]||0)+Math.max(-8,Math.min(8,Number(a.delta)))));
-   if(a.type==='treaty'&&target&&!state.treaties.includes(target))state.treaties.push(target);
-   if(a.type==='war'&&target&&!state.wars.includes(target))state.wars.push(target);
+   const target=a.targetCountryId,isPlayerTarget=target===state.selected,isKnownTarget=countryMeta.some(x=>x.info.id===target);
+   if(a.type==='relation'&&target&&Number.isFinite(Number(a.delta))){if(isPlayerTarget)state.relations[a.countryId]=Math.max(-100,Math.min(100,Number(state.relations[a.countryId]||0)+Math.max(-8,Math.min(8,Number(a.delta)))));else if(isKnownTarget){state.aiWorldState.bilateralRelations=state.aiWorldState.bilateralRelations||{};const key=[a.countryId,target].sort().join('|');state.aiWorldState.bilateralRelations[key]=Math.max(-100,Math.min(100,Number(state.aiWorldState.bilateralRelations[key]||0)+Math.max(-8,Math.min(8,Number(a.delta)))));}}
+   if(a.type==='treaty'&&target&&(isPlayerTarget||isKnownTarget)&&!state.treaties.includes(a.countryId+'|'+target))state.treaties.push(a.countryId+'|'+target);
+   if(a.type==='war'&&target&&(isPlayerTarget||isKnownTarget)&&!state.wars.includes(a.countryId+'|'+target))state.wars.push(a.countryId+'|'+target);
   });
   if(result.advisor){window.__wcLastAiBrief=String(result.advisor).slice(0,3000);$('advisor-text').textContent=window.__wcLastAiBrief.slice(0,700)}
   updateUI();save();
