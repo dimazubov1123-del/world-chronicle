@@ -143,7 +143,7 @@
     const enemy=n.feature,other=controller(enemy);
     if(other===occ.controller||!atWar(occ.controller,other))continue;
     const pair=[k,fkey(enemy)].sort().join('|');if(seen.has(pair))continue;seen.add(pair);
-    n.border.forEach(line=>frontLayer.addLayer(L.polyline([[line[0][1],line[0][0]],[line[1][1],line[1][0]]],{pane:'frontPane',color:'#e65a4f',weight:4,opacity:.94,dashArray:'8 4',lineCap:'round',interactive:false})));
+    n.border.forEach(line=>{const coords=[[line[0][1],line[0][0]],[line[1][1],line[1][0]]];frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#f0a05b',weight:7,opacity:.24,lineCap:'round',interactive:false}));frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#e65a4f',weight:2.8,opacity:.98,dashArray:'7 3',lineCap:'round',interactive:false}))});
    }
   });
  }
@@ -224,7 +224,7 @@
  }
  function styleRegion(feature){
   const p=feature.properties||{},adminId=admin(p),occ=occupied()[fkey(feature)],ctrl=occ?.controller||adminId;
-  return{color:occ?'#f2cf83':'#dce4ed',weight:occ?1.35:.62,opacity:occ?.98:.62,fillColor:occ?(ctrl===state.selected?'#b84b42':'#a98a55'):'#dce4ed',fillOpacity:occ?.5:.025};
+  const z=map?.getZoom?.()||2;return{color:occ?'#f2cf83':z<3?'#aebdca':'#dce4ed',weight:occ?1.35:z<3?.35:z<5?.65:.95,opacity:occ?.98:z<3?.35:.72,fillColor:occ?(ctrl===state.selected?'#b84b42':'#a98a55'):'#dce4ed',fillOpacity:occ?.5:.025};
  }
  function openRegion(feature){
   if(!featureByKey.size)rebuildIndex();
