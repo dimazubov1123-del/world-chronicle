@@ -42,9 +42,18 @@
   const end=new Date(state.year,state.month,state.day);end.setDate(end.getDate()+weeks*7);
   const endDate=end.getDate()+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][end.getMonth()]+' '+end.getFullYear();
   const base=window.WC_AI.snapshot();
+  let commandOperations=[],commandClarification='',commandSummary='';
   setBusy(true);
   try{
-   const result=await window.WC_AI.request('world-turn',{...base,date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
+   let resolvedOrder=order;
+   if(orders.length&&window.WC_WAR?.commandSnapshot&&window.WC_WAR?.executeOrders){
+    const parsed=await window.WC_AI.request('command',{order,world:window.WC_WAR.commandSnapshot()});
+    commandOperations=Array.isArray(parsed.operations)?parsed.operations:[];
+    commandClarification=String(parsed.clarification||'').trim();
+    commandSummary=String(parsed.summary||'').trim();
+    resolvedOrder=order+'\n\nПЛАН РАЗОБРАННЫХ ПРИКАЗОВ: '+JSON.stringify(commandOperations)+'\nПояснение штаба: '+commandSummary+(commandClarification?'\nТребует уточнения: '+commandClarification:'');
+   }
+   const result=await window.WC_AI.request('world-turn',{...base,date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:resolvedOrder});
    moveDate(weeks);
    state.currentPeriod={turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель'};
    state.aiWorldState=state.aiWorldState||{countries:{},lastSummary:''};
@@ -57,6 +66,12 @@
    });
    if(result.worldSummary)state.aiWorldState.lastSummary=String(result.worldSummary).slice(0,5000);
    window.__replayingEvents=true;
+   if(commandOperations.length){
+    const execution=window.WC_WAR.executeOrders(commandOperations);
+    if(execution.length)event('ИСПОЛНЕНИЕ ПРИКАЗОВ','Результаты распоряжений верховного командования',execution.join('\n\n'),{importance:execution.some(x=>/Захвачен|Объявлена война/.test(x))?'major':'normal',background:'Штаб разобрал текстовые распоряжения и передал допустимые операции игровому движку.',development:execution.join('\n\n'),consequences:'Выполненные изменения отражены на карте и в показателях государства.',reaction:'Публичная хроника фиксирует подтверждённые результаты.'});
+   }else if(orders.length&&(commandClarification||commandSummary)){
+    event('ШТАБНОЙ ДОКЛАД','Приказ не исполнен полностью',commandClarification||commandSummary,{importance:'normal'});
+   }
    if(result.playerReport)event('ДЕЙСТВИЯ ПРАВИТЕЛЬСТВА','Отчёт за период '+startDate+' — '+dateText(),String(result.playerReport).slice(0,9000));
    if(result.worldSummary)event('МИРОВАЯ ОБСТАНОВКА','Обзор мира · '+startDate+' — '+dateText(),String(result.worldSummary).slice(0,5000));
    (result.events||[]).forEach(e=>{if(e?.title&&e?.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ'),String(e.title),String(e.description),e)});
