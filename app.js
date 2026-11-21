@@ -317,3 +317,33 @@ $('help-btn').onclick=()=>modal('World Chronicle — справка','<p>Вы р
 $('sound-toggle').onclick=()=>setSoundEnabled(!soundEnabled);setSoundEnabled(soundEnabled);$('modal-close').onclick=closeModal;$('event-continue').onclick=closeChronicleEvent;$('event-overlay').onclick=e=>{if(e.target===$('event-overlay'))closeChronicleEvent()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChronicleEvent()});$('modal-backdrop').onclick=e=>{if(e.target===$('modal-backdrop'))closeModal()};
 document.addEventListener('click',e=>{if(e.target.closest('button')&&!e.target.closest('#sound-toggle')&&!e.target.closest('#next-turn'))playSound('click');const nav=e.target.closest('.nav-item');if(nav){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));nav.classList.add('active');const pages={overview:closeModal,diplomacy,economy,military,politics,elections};if(pages[nav.dataset.action])pages[nav.dataset.action]()}const a=e.target.closest('.action-card');if(a){if(a.dataset.action==='decree')decree();if(a.dataset.action==='speech')speech()}});
 load();ensureElection();if(state.regionsVisible){$('regions-toggle').classList.add('active');loadRegions()}if(!state.events.length)event('ПОЛИТИКА','Кампания готова к началу','Выберите направление развития государства и сделайте первый ход.');selectCountry(state.selected||'Russia');updateUI();
+
+
+// Map-first command dock: local simulation log, existing diplomacy and advisor systems.
+(function(){
+ const body=document.getElementById('pax-dock-body');
+ const tabs=[...document.querySelectorAll('.pax-tab')];
+ function showTab(tab){
+  tabs.forEach(x=>x.classList.toggle('active',x.dataset.paxTab===tab));
+  if(tab==='actions'){
+   body.innerHTML='<div class="pax-compose"><textarea id="pax-action-input" placeholder="Опишите действия вашего государства..."></textarea><div class="pax-compose-foot"><span>Приказы государства · фиксируются в хронике</span><button id="pax-submit-action">Отправить приказ ↗</button></div></div>';
+   document.getElementById('pax-submit-action').onclick=submitAction;
+  } else if(tab==='chat'){
+   body.innerHTML='<div class="pax-chat-empty">Выберите государство на карте или откройте раздел «Дипломатия», чтобы начать переговоры. Переписка и дипломатические инициативы доступны через существующую систему игры.<br><button id="pax-open-diplomacy" class="mini-action" style="margin-top:9px">Открыть дипломатию →</button></div>';
+   document.getElementById('pax-open-diplomacy').onclick=()=>{diplomacy();};
+  } else if(tab==='advisor'){
+   body.innerHTML='<div class="pax-chat-empty"><b>Советник государства</b><br><span id="pax-advisor-copy">'+(document.getElementById('advisor-text')?.textContent||'Советник готов предоставить сводку.')+'</span><br><button id="pax-advisor-refresh" class="mini-action" style="margin-top:9px">Обновить оценку</button></div>';
+   document.getElementById('pax-advisor-refresh').onclick=()=>{const t=document.getElementById('advisor-text')?.textContent||'Показатели государства стабильны.';document.getElementById('pax-advisor-copy').textContent=t;};
+  } else {
+   body.innerHTML='<div class="pax-chat-empty" id="pax-chronicle-copy">Последние события кампании отображаются в панели хроники справа. Нажмите на событие, чтобы следить за развитием ситуации.</div>';
+   const panel=document.querySelector('.right-panel');if(panel)panel.style.display='block';
+  }
+ }
+ function submitAction(){
+  const input=document.getElementById('pax-action-input');const value=input?.value.trim();if(!value){alert('Опишите приказ перед отправкой.');return;}
+  event('ПРИКАЗ ГОСУДАРСТВА','Новый приказ: '+value.slice(0,90),value+' Приказ внесён в журнал решений и будет учтён при дальнейшем ходе кампании.');
+  input.value='';save();
+ }
+ tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.paxTab)));
+ document.getElementById('pax-submit-action')?.addEventListener('click',submitAction);
+})();
