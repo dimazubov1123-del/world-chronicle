@@ -690,11 +690,10 @@ function countryPicker(){openCountrySelection(false)}
  async function refreshLobbyOnce(ss){const d=await api('/api/rooms/'+ss.code+'?token='+encodeURIComponent(ss.token));renderLobby(d,ss)}
  function enterGameForNetwork(ss){stopPoll();state.selected=ss.countryId;menu.classList.add('wc-menu-hide');document.querySelector('.app-shell').style.display='flex';document.body.classList.add('wc-multiplayer-active');document.getElementById('pax-session-country').textContent=countries.find(c=>c[0]===ss.countryId)?.[1]||ss.countryId;setTimeout(()=>{if(map)map.invalidateSize({pan:false});const scenarioSelect=document.getElementById('scenario-select');if(scenarioSelect)scenarioSelect.value=String(state.year);selectCountry(ss.countryId);document.getElementById('modal-backdrop')?.classList.add('hidden');window.WC_TURN_MULTIPLAYER_INIT?.()},120)}
  document.addEventListener('click',e=>{
-  const target=e.target.closest('[data-menu-page],#wc-menu-network,#wc-go-create,#wc-menu-solo,#wc-card-solo,#wc-page-solo');
+  const target=e.target.closest('[data-menu-page],#wc-menu-network,#wc-go-create');
   if(!target)return;const name=target.dataset.menuPage;
   if(name==='network'||name==='servers'||target.id==='wc-menu-network'){e.preventDefault();e.stopImmediatePropagation();showNetwork()}
   else if(name==='create'||target.id==='wc-go-create'){e.preventDefault();e.stopImmediatePropagation();showCreate()}
-  else if(['wc-menu-solo','wc-card-solo','wc-page-solo'].includes(target.id)){e.preventDefault();e.stopImmediatePropagation();const ss=session();if(ss)api('/api/rooms/'+ss.code+'/leave','POST',{token:ss.token}).catch(()=>{});localStorage.removeItem(SESSION);stopPoll();document.body.classList.remove('wc-multiplayer-active');if(document.getElementById('wc-network-status'))document.getElementById('wc-network-status').hidden=true;if(document.getElementById('wc-network-ready'))document.getElementById('wc-network-ready').hidden=true;menu.classList.add('wc-menu-hide');document.querySelector('.app-shell').style.display='flex';setTimeout(()=>{if(map)map.invalidateSize({pan:false});openCountrySelection(true)},120)}
  },true);
  window.WC_MULTIPLAYER={session,api,showNetwork,refresh:async()=>{const ss=session();return ss?api('/api/rooms/'+ss.code+'?token='+encodeURIComponent(ss.token)):null},saveSession};
 })();
