@@ -295,9 +295,7 @@
   function frontSnapshot(){return frontContacts().map(x=>({heldRegion:name(x.a.properties||{}),heldBy:x.sideA,enemyRegion:name(x.b.properties||{}),enemyCountry:x.sideB})).slice(0,100)}
   function commandSnapshot(){
    if(!featureByKey.size)rebuildIndex();
-   const own=regionFeatures().filter(f=>admin(f.properties||{})===state.selected),neighborCountries=new Set();
-   own.forEach(f=>adjacent(f).forEach(n=>neighborCountries.add(admin(n.feature.properties||{}))));
-   wars().forEach(w=>String(w).split('|').forEach(id=>neighborCountries.add(id)));
+   const own=regionFeatures().filter(f=>admin(f.properties||{})===state.selected);
    const relevant=new Map(),addRegion=f=>{if(f)relevant.set(fkey(f),f)};
    armies().forEach(u=>{const f=unitRegion(u);if(f){addRegion(f);adjacent(f).forEach(n=>addRegion(n.feature))}});
    const capital=initialRegion(state.selected,capitals[state.selected]||centerForCountry(state.selected));addRegion(capital);
