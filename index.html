@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b111b">
+  <meta name="description" content="World Chronicle — alternate history grand strategy sandbox.">
+  <title>World Chronicle — Grand Strategy</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#"><span class="brand-mark">W</span><span><strong>WORLD CHRONICLE</strong><small>ALTERNATE HISTORY SANDBOX</small></span></a>
+      <div class="campaign-meta"><span class="live-dot"></span><span id="scenario-label">Европа на распутье</span><span class="meta-divider"></span><span id="date-label">1 января 1936</span></div>
+      <div class="top-actions"><button class="icon-button" id="help-btn" title="Справка">?</button><button class="profile-button"><span class="avatar">П</span><span>Игрок</span></button></div>
+    </header>
+    <main class="workspace">
+      <aside class="left-panel panel">
+        <div class="panel-heading"><div><span class="eyebrow">ГЛАВНОЕ МЕНЮ</span><h2>Кампания</h2></div><span class="online-pill">LOCAL</span></div>
+        <label class="field-label" for="scenario-select">ИСТОРИЧЕСКИЙ СЦЕНАРИЙ</label>
+        <select id="scenario-select" class="select-control">
+          <option value="1936">Европа на распутье · 1936</option>
+          <option value="1914">Лето 1914 года · 1914</option>
+          <option value="2026">Современный мир · 2026</option>
+          <option value="1836">Эпоха империй · 1836</option>
+        </select>
+        <div class="section-rule"></div>
+        <div class="section-title"><span>ВАШЕ ГОСУДАРСТВО</span><button class="text-button" id="choose-country">Выбрать</button></div>
+        <div class="country-card">
+          <div class="country-flag" id="country-flag">🇷🇺</div>
+          <div class="country-info"><strong id="country-name">Российская Федерация</strong><span id="country-capital">Столица: Москва</span></div>
+          <span class="status-dot"></span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-box"><span>НАСЕЛЕНИЕ</span><strong id="population">170 млн</strong></div>
+          <div class="stat-box"><span>ЭКОНОМИКА</span><strong id="economy">Сильная</strong></div>
+          <div class="stat-box"><span>СТАБИЛЬНОСТЬ</span><strong id="stability">72%</strong></div>
+          <div class="stat-box"><span>ВООРУЖЁННЫЕ СИЛЫ</span><strong id="military">Высокие</strong></div>
+        </div>
+        <div class="section-rule"></div>
+        <div class="section-title"><span>ГОСУДАРСТВЕННЫЕ ДЕЛА</span><span class="muted">01—04</span></div>
+        <nav class="main-nav">
+          <button class="nav-item active" data-action="overview"><span class="nav-icon">▦</span>Обзор государства</button>
+          <button class="nav-item" data-action="diplomacy"><span class="nav-icon">⇄</span>Дипломатия <span class="nav-lock">Скоро</span></button>
+          <button class="nav-item" data-action="economy"><span class="nav-icon">◫</span>Экономика <span class="nav-lock">Скоро</span></button>
+          <button class="nav-item" data-action="military"><span class="nav-icon">⚔</span>Вооружённые силы <span class="nav-lock">Скоро</span></button>
+          <button class="nav-item" data-action="politics"><span class="nav-icon">▤</span>Внутренняя политика <span class="nav-lock">Скоро</span></button>
+        </nav>
+        <div class="left-footer"><span class="footer-mark">WC</span><span>WORLD CHRONICLE<br><small>ПРОТОТИП · BUILD 0.1</small></span></div>
+      </aside>
+      <section class="map-stage">
+        <div class="map-toolbar">
+          <div class="map-title"><span class="eyebrow">ГЕОПОЛИТИЧЕСКАЯ КАРТА</span><strong>Мировая обстановка</strong></div>
+          <div class="map-tools"><button class="tool-button active" id="political-view">◈ Политическая</button><button class="tool-button" id="labels-toggle">⌖ Подписи</button><button class="tool-button" id="reset-map">↺ Сбросить</button></div>
+        </div>
+        <div id="map" aria-label="Интерактивная карта мира"></div>
+        <div class="map-legend"><span><i class="legend-swatch selected"></i>Выбранная страна</span><span><i class="legend-swatch neutral"></i>Другие государства</span><span class="map-attribution">Карта: OpenStreetMap · Natural Earth</span></div>
+        <div class="map-hint" id="map-hint"><span>⌖</span> Выберите страну на карте, чтобы изучить её</div>
+      </section>
+      <aside class="right-panel panel">
+        <div class="panel-heading"><div><span class="eyebrow">МИРОВАЯ СВОДКА</span><h2>Хроника событий</h2></div><span class="notification-count" id="event-count">03</span></div>
+        <div class="news-list" id="news-list">
+          <article class="news-item"><div class="news-meta"><span class="news-tag gold">ДИПЛОМАТИЯ</span><time>08:30</time></div><h3>Европейские державы следят за развитием кризиса</h3><p>Послы ведущих государств проводят закрытые консультации.</p></article>
+          <article class="news-item"><div class="news-meta"><span class="news-tag blue">ЭКОНОМИКА</span><time>10:15</time></div><h3>Мировые рынки сохраняют осторожность</h3><p>Инвесторы оценивают перспективы международной торговли.</p></article>
+          <article class="news-item"><div class="news-meta"><span class="news-tag red">ПОЛИТИКА</span><time>12:00</time></div><h3>Правительства готовят новые заявления</h3><p>В ближайшие дни ожидаются важные политические решения.</p></article>
+        </div>
+        <div class="section-rule"></div>
+        <div class="section-title"><span>ДЕЙСТВИЯ</span><span class="muted">БЫСТРЫЙ ДОСТУП</span></div>
+        <button class="action-card" data-action="decree"><span class="action-icon">✦</span><span><strong>Издать указ</strong><small>Объявить внутреннюю инициативу</small></span><span class="chevron">›</span></button>
+        <button class="action-card" data-action="speech"><span class="action-icon">▤</span><span><strong>Обращение к нации</strong><small>Выступление главы государства</small></span><span class="chevron">›</span></button>
+        <div class="advisor-card"><div class="advisor-avatar">i</div><div><strong>Советник</strong><p id="advisor-text">Ваше государство готово к началу кампании. Выберите направление развития.</p></div></div>
+      </aside>
+    </main>
+    <footer class="bottom-bar"><div class="footer-left"><span class="live-dot"></span> МИР АКТИВЕН <span class="meta-divider"></span><span id="turn-label">ХОД 001</span></div><div class="time-controls"><span class="speed-label">СКОРОСТЬ</span><button class="speed-button active" data-speed="1">Ⅰ</button><button class="speed-button" data-speed="2">Ⅱ</button><button class="speed-button" data-speed="3">Ⅲ</button><button class="pause-button" id="pause-button">Ⅱ ПАУЗА</button><button class="next-button" id="next-turn">СЛЕДУЮЩИЙ ХОД <span>→</span></button></div><div class="footer-right">WORLD CHRONICLE <span>© 2026</span></div></footer>
+  </div>
+  <div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal"><button class="modal-close" id="modal-close">×</button><span class="eyebrow">WORLD CHRONICLE</span><h2 id="modal-title">Выберите государство</h2><div id="modal-content"></div></section></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
