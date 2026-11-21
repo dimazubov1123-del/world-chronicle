@@ -57,6 +57,7 @@
   const endDate=end.getDate()+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][end.getMonth()]+' '+end.getFullYear();
   const base=window.WC_AI.snapshot();
   let commandOperations=[],commandClarification='',commandSummary='';
+  const rollbackState=net?JSON.parse(JSON.stringify({...state,geoLayer:null})):null;
   const commandContext=orders.length?window.WC_WAR?.commandSnapshot?.():null;
   setBusy(true);
   try{
@@ -117,6 +118,7 @@
   }catch(err){
    window.__replayingEvents=false;
    if(net&&begun)try{await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/abort','POST',{token:net.token})}catch(e){}
+   if(net&&rollbackState){Object.assign(state,rollbackState);updateUI();window.WC_WAR?.sync?.();save()}
    alert('ИИ не смог рассчитать период. Время не продвинуто, приказы сохранены.\n\n'+err.message);
    const advisor=$('advisor-text');if(advisor)advisor.textContent='Ошибка расчёта: '+err.message;
   }finally{setBusy(false);save()}
