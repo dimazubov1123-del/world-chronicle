@@ -91,7 +91,7 @@
    (result.countryReports||[]).forEach(r=>{
     if(!r?.countryId||r.countryId===state.selected)return;
     const report={countryId:r.countryId,lastUpdatedTurn:state.turn};
-    ['government','internalPolitics','economy','society','diplomacy','defense','publicDecision','nextStep'].forEach(k=>{if(r[k])report[k]=String(r[k]).slice(0,1800)});
+    ['government','headOfState','headOfGovernment','rulingParty','coalition','partySystem','parties','internalPolitics','economy','society','diplomacy','defense','publicDecision','nextStep'].forEach(k=>{if(r[k])report[k]=String(r[k]).slice(0,1800)});
     state.aiWorldState.countries[r.countryId]=report;
    });
    if(result.worldSummary)state.aiWorldState.lastSummary=String(result.worldSummary).slice(0,5000);
