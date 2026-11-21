@@ -153,8 +153,8 @@
   if(!frontsVisible)return;
   frontContacts().forEach(contact=>contact.border.forEach(line=>{
    const coords=[[line[0][1],line[0][0]],[line[1][1],line[1][0]]];
-   frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#f0a05b',weight:7,opacity:.24,lineCap:'round',interactive:false}));
-   frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#e65a4f',weight:2.8,opacity:.98,dashArray:'7 3',lineCap:'round',interactive:false}));
+   frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#f0a05b',weight:7,opacity:.24,lineCap:'round',className:'wc-frontline-pulse',interactive:false}));
+   frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#e65a4f',weight:2.8,opacity:.98,dashArray:'7 3',lineCap:'round',className:'wc-frontline-dash',interactive:false}));
   }));
  }
  function toggleFronts(){
