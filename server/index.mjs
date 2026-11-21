@@ -29,7 +29,7 @@ async function ask(system,user,maxTokens=1200){
  const apiKey=groq?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY;
  if(!apiKey){const e=new Error(groq?'На сервере не задан GROQ_API_KEY.':'На сервере не задан OPENROUTER_API_KEY.');e.status=503;throw e}
  const body={model:MODEL,temperature:.55,messages:[{role:'system',content:system},{role:'user',content:user}]};
- if(groq)body.max_completion_tokens=maxTokens;else body.max_tokens=maxTokens;
+ if(groq){body.max_completion_tokens=maxTokens;body.reasoning_effort='low';body.reasoning_format='hidden';body.response_format={type:'json_object'};}else body.max_tokens=maxTokens;
  if(!groq&&MODEL.startsWith('nvidia/'))body.provider={only:['nvidia'],allow_fallbacks:false};
  const headers={Authorization:'Bearer '+apiKey,'Content-Type':'application/json'};
  if(groq)headers['Groq-Beta']='inference-metrics';
@@ -57,10 +57,10 @@ function compactWorld(b){
  const priority=allCountries.filter(c=>active.has(c.id));
  const major=[...allCountries].sort((a,b)=>(Number(b.gdpEstimate)||0)-(Number(a.gdpEstimate)||0)).slice(0,6);
  const chosen=new Set(),batch=[];
- const add=c=>{if(c&&!chosen.has(c.id)&&batch.length<20){chosen.add(c.id);batch.push(c)}};
- priority.slice(0,4).forEach(add);major.forEach(add);
+ const add=c=>{if(c&&!chosen.has(c.id)&&batch.length<12){chosen.add(c.id);batch.push(c)}};
+ priority.slice(0,3).forEach(add);major.forEach(add);
  const rotating=allCountries.filter(c=>!chosen.has(c.id));
- if(rotating.length){const offset=((Math.max(0,Number(b.turn)||0)*10)%rotating.length);for(let i=0;i<Math.min(20-batch.length,10,rotating.length);i++)add(rotating[(offset+i)%rotating.length]);}
+ if(rotating.length){const offset=((Math.max(0,Number(b.turn)||0)*10)%rotating.length);for(let i=0;i<Math.min(12-batch.length,6,rotating.length);i++)add(rotating[(offset+i)%rotating.length]);}
  return {
   date:clean(b.date,40),startDate:clean(b.startDate,40),endDate:clean(b.endDate,40),elapsedWeeks:Math.max(1,Math.min(520,Number(b.elapsedWeeks)||1)),
   playerOrder:clean(b.playerOrder,6000),year:Number(b.year)||null,scenario:clean(b.scenario,100),turn:Number(b.turn)||0,
@@ -73,11 +73,11 @@ function compactWorld(b){
 
 const worldSystem=`Ты — автономный симулятор альтернативной истории World Chronicle. Просчитай весь указанный интервал целиком, учитывая дату, сценарий, географию, ресурсы, соседей, войны, договоры, отношения, предыдущие доклады и приказ игрока. Сохраняй непрерывность и причинно-следственные связи. Выполни приказ игрока реалистично: не превращай длительные реформы в мгновенный успех; опиши препятствия и частичные результаты. Если приказ пуст, опиши естественное развитие страны.
 
-В countries перечислены 20 государств для подробного обновления в этом ходу. Другие государства учитывай в общей мировой картине и событиях, но не создавай для них отдельные countryReports сейчас. Состав государств меняется от хода к ходу, чтобы со временем обновлялись все страны. Важные государства и участники войн/дипломатии имеют приоритет.
+В countries перечислены до 12 государств для подробного обновления в этом ходу. Другие государства учитывай в общей мировой картине и событиях, но не создавай для них отдельные countryReports сейчас. Состав государств меняется от хода к ходу, чтобы со временем обновлялись все страны. Важные государства и участники войн/дипломатии имеют приоритет.
 
 ПУБЛИЧНОСТЬ: сообщай только известные обществу и иностранным наблюдателям факты — опубликованные решения, парламент, заявления, протесты, выборы, визиты, ноты, подписанные договоры, открытые мобилизационные меры, учения, видимые передвижения войск и официальные операции. Не раскрывай закрытые переговоры, планы разведки, агентурные сведения, тайные операции, секретные протоколы и скрытые намерения.
 
-Не выдумывай точные экономические или военные показатели, которых нет во входных данных. Пиши кратко и конкретно, без воды. Для каждого из 20 государств верни все поля countryReports, но каждое поле — максимум одно короткое предложение (до 110 символов). playerReport — 3-5 содержательных абзацев. worldSummary — 1-2 абзаца. advisor — один короткий аналитический абзац. Сформируй 4-7 значимых публичных событий. Не объявляй войну без серьёзной причины. Никогда не принимай решения за игрока.
+Не выдумывай точные экономические или военные показатели, которых нет во входных данных. Пиши кратко и конкретно, без воды. Для каждого выбранного государства верни все поля countryReports, но каждое поле — максимум одно короткое предложение (до 110 символов). playerReport — 3-5 содержательных абзацев. worldSummary — 1-2 абзаца. advisor — один короткий аналитический абзац. Сформируй 4-7 значимых публичных событий. Не объявляй войну без серьёзной причины. Никогда не принимай решения за игрока.
 
 Верни строго один JSON:
 {"playerReport":"хроника действий страны игрока за интервал","worldSummary":"обзор мировой обстановки","countryReports":[{"countryId":"точный id из списка countries","government":"публичные сведения о правительстве","internalPolitics":"внутренняя политика и общественные настроения","economy":"экономика и публичные меры","society":"социальные процессы","diplomacy":"публичные дипломатические шаги","defense":"публично известные оборонные решения","publicDecision":"главное публичное действие и последствия","nextStep":"вероятное направление следующего периода"}],"events":[{"category":"ПОЛИТИКА|ЭКОНОМИКА|ДИПЛОМАТИЯ|ВОЕННОЕ ДЕЛО|ОБЩЕСТВО","title":"заголовок","description":"новость на 2-3 предложения","visibility":"public"}],"actions":[{"countryId":"инициатор","type":"relation|treaty|war","targetCountryId":"цель","delta":-8}],"advisor":"краткий аналитический доклад советника"}.`;
@@ -89,7 +89,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
   const allowed=new Set((world.allCountryIds||world.countries.map(c=>c.id)).filter(id=>id&&id!==world.player.id));
   const {allCountryIds,...modelWorld}=world;
   const prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 20 выбранных государств; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
-  const result=parse(await ask(worldSystem,prompt,4200));
+  const result=parse(await ask(worldSystem,prompt,3000));
   result.playerReport=clean(result.playerReport,9000);
   result.countryReports=(Array.isArray(result.countryReports)?result.countryReports:[]).filter(r=>r&&allowed.has(r.countryId)).map(r=>{
    const out={countryId:r.countryId};
