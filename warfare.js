@@ -6,6 +6,7 @@
  const wars=()=>state.wars||(state.wars=[]);
  const armies=()=>state.armies||(state.armies=[]);
  const occupied=()=>state.occupiedRegions||(state.occupiedRegions={});
+ const exercises=()=>state.exercises||(state.exercises=[]);
  const key=(admin,name)=>String(admin)+'::'+String(name);
  let selectedUnitId=null,unitLayer=null,frontLayer=null,frontsVisible=state.frontsVisible!==false;
  const featureByKey=new Map(),boxCache=new WeakMap(),segmentCache=new WeakMap(),adjacencyCache=new Map();
@@ -130,6 +131,11 @@
    const marker=L.marker(u.position,{pane:'unitsPane',icon:L.divIcon({className:'wc-army-marker '+(u.id===selectedUnitId?'selected':''),html:'<span>⚑</span><small>'+esc(u.name)+'</small>',iconSize:[34,34],iconAnchor:[17,17]})});
    marker.bindTooltip(esc(u.name)+' · '+u.type+' · '+u.strength+' тыс. · '+esc(u.location||'Позиция не указана'),{direction:'top',className:'wc-army-tooltip'});
    marker.on('click',()=>{selectedUnitId=u.id;syncUnits();openWarRoom()});unitLayer.addLayer(marker);
+  });
+  exercises().filter(x=>x.status==='active'&&Array.isArray(x.position)).forEach(ex=>{
+   const marker=L.marker(ex.position,{pane:'unitsPane',interactive:true,icon:L.divIcon({className:'wc-exercise-marker',html:'<span>✣</span><small>УЧЕНИЯ</small>',iconSize:[42,42],iconAnchor:[21,21]})});
+   marker.bindTooltip(esc(ex.name)+' · '+esc(ex.exerciseType)+' · осталось ходов: '+Math.max(0,Number(ex.endsTurn||0)-Number(state.turn||0)),{direction:'top',className:'wc-army-tooltip'});
+   unitLayer.addLayer(marker);
   });
   syncFronts();
  }
@@ -329,6 +335,15 @@
   };
   regionLayer.eachLayer(attach);regionLayer.on('layeradd',e=>attach(e.layer));regionLayer.setStyle(styleRegion);
  }
+ function advanceTurn(){
+  let changed=false;
+  exercises().forEach(ex=>{if(ex.status==='active'&&Number(state.turn||0)>=Number(ex.endsTurn||0)){
+   ex.status='completed';changed=true;
+   const unit=armies().find(u=>u.id===ex.unitId);if(unit)unit.strength=Math.min(20,Number(unit.strength||0)+1);
+   event('ВОЕННОЕ ДЕЛО','Завершены учения: '+ex.name,(unit?.name||ex.unitName)+' завершил программу «'+ex.exerciseType+'». Подготовка соединения улучшена.',{importance:'normal',location:ex.regionKey});
+  }});
+  if(changed){syncUnits();save()}
+ }
  function init(){
   if(!map||!window.L)return;
   ensureLayers();bindRegionLayer();rebuildIndex();syncUnits();
@@ -345,7 +360,7 @@
    const capital=initialRegion(state.selected,capitals[state.selected]||centerForCountry(state.selected));addRegion(capital);
    own.forEach(addRegion);
    const regions=Array.from(relevant.values()).slice(0,120).map(f=>({key:fkey(f),name:name(f.properties||{}),countryId:admin(f.properties||{}),controller:controller(f)}));
-   return {date:dateText(),player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected},treasury:state.treasury,manpower:state.manpower,army:state.army,wars:wars().slice(),armies:armies().map(u=>({id:u.id,name:u.name,type:u.type,strength:u.strength,location:u.location,regionKey:unitRegion(u)?u.regionKey:null})),regions,countries:(countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name}))};
+   return {date:dateText(),player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected},treasury:state.treasury,manpower:state.manpower,army:state.army,wars:wars().slice(),armies:armies().map(u=>({id:u.id,name:u.name,type:u.type,strength:u.strength,location:u.location,regionKey:unitRegion(u)?u.regionKey:null})),units:armies().map(u=>({id:u.id,name:u.name,type:u.type,strength:u.strength,location:u.location,regionKey:unitRegion(u)?u.regionKey:null})),exercises:exercises().filter(x=>x.status==='active'),regions,countries:(countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name}))};
   }
   function executeOrders(operations){
    const results=[],specs={'Пехотная дивизия':{cost:4,manpower:10,strength:10},'Моторизованная дивизия':{cost:6,manpower:8,strength:9},'Танковая дивизия':{cost:8,manpower:7,strength:12},'Воздушно-десантная дивизия':{cost:7,manpower:6,strength:8}};
@@ -358,7 +373,15 @@
       const position=capitals[state.selected]||centerForCountry(state.selected),feature=initialRegion(state.selected,position),unit={id:'DIV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),name:String(op.name||'Новое соединение').slice(0,45),type:op.unitType,strength:spec.strength,position:feature?center(feature):position,location:feature?name(feature.properties||{}):'Район столицы',regionKey:feature?fkey(feature):null,createdTurn:state.turn};
       armies().push(unit);selectedUnitId=unit.id;results.push('Сформировано '+unit.name+' ('+unit.type+'), '+spec.manpower+' тыс.; размещение: '+unit.location+'.');
       event('ВОЕННОЕ ДЕЛО','Сформировано соединение: '+unit.name,'По приказу верховного командования сформировано соединение '+unit.type+'. Численность — '+spec.manpower+' тыс. военнослужащих; место дислокации — '+unit.location+'.',{importance:'normal',location:unit.location});
-     }else if(op.type==='move'||op.type==='attack'){
+     }else if(op.type==='exercise'){
+       const unit=armies().find(u=>u.id===op.unitId),feature=featureByKey.get(op.targetRegionKey);
+       if(!unit||!feature){results.push('Учения не назначены: соединение или регион не найден.');return}
+       if(controller(feature)!==state.selected){results.push('Учения отклонены: район не находится под вашим контролем.');return}
+       const duration=Math.max(1,Math.min(4,Number(op.durationTurns)||1)),exercise={id:'EX-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5),name:String(op.name||'Тактические учения').slice(0,80),exerciseType:op.exerciseType||'манёвры',unitId:unit.id,unitName:unit.name,regionKey:fkey(feature),position:center(feature),startedTurn:Number(state.turn||1),endsTurn:Number(state.turn||1)+duration,status:'active'};
+       exercises().push(exercise);results.push('Назначены учения «'+exercise.name+'» для '+unit.name+' в районе '+name(feature.properties||{})+' на '+duration+' ход(а).');
+       event('ВОЕННОЕ ДЕЛО','Начались военные учения: '+exercise.name,unit.name+' проводит '+exercise.exerciseType+' в районе '+name(feature.properties||{})+'. Продолжительность — '+duration+' ход(а).',{importance:'normal',location:name(feature.properties||{})});
+       syncUnits();
+      }else if(op.type==='move'||op.type==='attack'){
       const unit=armies().find(u=>u.id===op.unitId),feature=featureByKey.get(op.targetRegionKey);if(!unit||!feature){results.push('Операция отклонена: соединение или регион не найден.');return}
       const ctrl=controller(feature),from=unitRegion(unit);
       if(!from){results.push('Операция отклонена: не удалось определить исходный регион '+unit.name+'.');return}
@@ -399,7 +422,7 @@
    });
    syncUnits();updateUI();save();return results;
   }
-  window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId,toggleFronts,frontSnapshot,snapshot:()=>armies().map(u=>({id:u.id,name:u.name,regionKey:u.regionKey,strength:u.strength,location:u.location})),commandSnapshot,executeOrders};
+  window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId,toggleFronts,frontSnapshot,snapshot:()=>armies().map(u=>({id:u.id,name:u.name,regionKey:u.regionKey,strength:u.strength,location:u.location})),commandSnapshot,executeOrders,advanceTurn};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
