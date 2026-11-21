@@ -110,6 +110,6 @@
  const content=$('pax-drawer-content');
  if(content)new MutationObserver(()=>{
   const send=$('pax-send');
-  if(send){send.textContent='Добавить приказ в ход';const old=$('pax-orders');if(!old){const box=document.createElement('div');box.id='pax-orders';box.style.marginTop='12px';send.parentElement?.after(box)}refreshOrderQueue()}
+  if(send){if(send.textContent!=='Добавить приказ в ход')send.textContent='Добавить приказ в ход';const old=$('pax-orders');if(!old){const box=document.createElement('div');box.id='pax-orders';box.style.marginTop='12px';send.parentElement?.after(box)}refreshOrderQueue()}
  }).observe(content,{childList:true,subtree:true});
 })();
