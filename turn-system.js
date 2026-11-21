@@ -21,15 +21,16 @@
   box.innerHTML='<div class="pax-initiative-head"><b>Приказы на следующий период · '+orders.length+'</b><small>ИИ получит их при продолжении времени</small></div>'+
    (orders.length?orders.map((x,i)=>'<div class="pax-log-item"><b>Приказ '+(i+1)+'</b><br>'+escapeHtml(x)+'</div>').join(''):'<p style="font-size:10px;color:#89939e">Приказы ещё не добавлены.</p>');
  }
- function queueOrder(){
-  const input=$('pax-order');const value=input?.value.trim();
-  if(!value){alert('Сначала напишите приказ.');return}
-  state.pendingOrders=state.pendingOrders||[];
-  state.pendingOrders.push({text:value,createdAt:dateText()});
-  if(input)input.value='';
+ function queueTextOrder(value){
+  value=String(value||'').trim();if(!value){alert('Сначала напишите приказ.');return false}
+  state.pendingOrders=state.pendingOrders||[];state.pendingOrders.push({text:value,createdAt:dateText()});
   const net=window.WC_MULTIPLAYER?.session?.();
   if(net)window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/order','POST',{token:net.token,order:pendingText().join('\n\n')}).catch(e=>alert('Не удалось отправить приказ в комнату: '+e.message));
-  refreshOrderQueue();save();
+  refreshOrderQueue();save();return true;
+ }
+ function queueOrder(){
+  const input=$('pax-order'),value=input?.value.trim();if(!queueTextOrder(value))return;
+  if(input)input.value='';
   const send=$('pax-send');if(send){send.textContent='Приказ добавлен ✓';setTimeout(()=>{if(send.isConnected)send.textContent='Добавить приказ в ход'},1600)}
  }
  function setBusy(on){
@@ -69,7 +70,7 @@
   setBusy(true);
   try{
    let commandPlan=null;
-   const hasMilitaryOrder=/(наступ|атак|штурм|захват|занять регион|передислоц|переброс|отвести войск|отступ|дивизи|соединени|мобилиз|сформир.*войск|развернут.*войск|двинут.*войск)/i.test(order);
+   const hasMilitaryOrder=/(наступ|атак|штурм|захват|занять регион|передислоц|переброс|отвести войск|отступ|дивизи|соединени|мобилиз|сформир.*войск|развернут.*войск|двинут.*войск|учени|маневр|манёвр|стрельб|тактическ|боев.*подготов|развед.*боем|перегрупп|выдвинуть|занять рубеж|закрепиться)/i.test(order);
    if(hasMilitaryOrder&&commandContext){
     try{
      commandPlan=await window.WC_AI.request('command',{world:{...base,...commandContext},order});
@@ -176,6 +177,7 @@
  state.paused=true;
  if(window.gameTimer){clearInterval(window.gameTimer);window.gameTimer=null}
  window.advanceTurn=()=>continuePeriod(1);
+  window.WC_QUEUE_ORDER=queueTextOrder;
  const oldSync=window.syncTimer;
  window.syncTimer=()=>{if(window.gameTimer){clearInterval(window.gameTimer);window.gameTimer=null}state.paused=true};
  document.addEventListener('click',e=>{
