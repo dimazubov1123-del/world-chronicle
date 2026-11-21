@@ -8,7 +8,7 @@
  const occupied=()=>state.occupiedRegions||(state.occupiedRegions={});
  let selectedUnitId=null,unitLayer=null;
  const capitals={
-  Russia:[55.7558,37.6173],'United States of America':[38.9072,-77.0369],China:[39.9042,116.4074],Germany:[52.52,13.405],France:[48.8566,2.3522],'United Kingdom':[51.5072,-.1276],Japan:[35.6762,139.6503],Brazil:[-15.7939,-47.8828],India:[28.6139,77.209],Italy:[41.9028,12.4964],Canada:[45.4215,-75.6972],Mexico:[19.4326,-99.1332],Ukraine:[50.4501,30.5234],Poland:[52.2297,21.0122],Turkey:[39.9334,32.8597],Iran:[35.6892,51.389],Spain:[40.4168,-3.7038],Australia:[-35.2809,149.13],Egypt:[30.0444,31.2357],South Korea:[37.5665,126.978]
+  Russia:[55.7558,37.6173],'United States of America':[38.9072,-77.0369],China:[39.9042,116.4074],Germany:[52.52,13.405],France:[48.8566,2.3522],'United Kingdom':[51.5072,-.1276],Japan:[35.6762,139.6503],Brazil:[-15.7939,-47.8828],India:[28.6139,77.209],Italy:[41.9028,12.4964],Canada:[45.4215,-75.6972],Mexico:[19.4326,-99.1332],Ukraine:[50.4501,30.5234],Poland:[52.2297,21.0122],Turkey:[39.9334,32.8597],Iran:[35.6892,51.389],Spain:[40.4168,-3.7038],Australia:[-35.2809,149.13],Egypt:[30.0444,31.2357],'South Korea':[37.5665,126.978]
  };
  function centerForCountry(id){
   if(capitals[id])return capitals[id];
