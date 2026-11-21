@@ -133,19 +133,29 @@
   });
   syncFronts();
  }
+ function frontContacts(){
+  if(!featureByKey.size)rebuildIndex();
+  const features=regionFeatures(),active=new Set();
+  wars().forEach(w=>String(w).split('|').forEach(x=>active.add(x)));
+  const out=[],seen=new Set();
+  for(const f of features){
+   const sideA=controller(f);if(!active.has(sideA)&&!active.has(admin(f.properties||{})))continue;
+   for(const n of adjacent(f)){
+    const sideB=controller(n.feature);if(sideA===sideB||!atWar(sideA,sideB))continue;
+    const pair=[fkey(f),fkey(n.feature)].sort().join('|');if(seen.has(pair))continue;seen.add(pair);
+    out.push({a:f,b:n.feature,sideA,sideB,border:n.border});
+   }
+  }
+  return out;
+ }
  function syncFronts(){
   if(!frontLayer||!window.L)return;frontLayer.clearLayers();
   if(!frontsVisible)return;
-  const features=regionFeatures(),seen=new Set();
-  Object.entries(occupied()).forEach(([k,occ])=>{
-   const own=featureByKey.get(k);if(!own||!occ?.controller)return;
-   for(const n of adjacent(own)){
-    const enemy=n.feature,other=controller(enemy);
-    if(other===occ.controller||!atWar(occ.controller,other))continue;
-    const pair=[k,fkey(enemy)].sort().join('|');if(seen.has(pair))continue;seen.add(pair);
-    n.border.forEach(line=>{const coords=[[line[0][1],line[0][0]],[line[1][1],line[1][0]]];frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#f0a05b',weight:7,opacity:.24,lineCap:'round',interactive:false}));frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#e65a4f',weight:2.8,opacity:.98,dashArray:'7 3',lineCap:'round',interactive:false}))});
-   }
-  });
+  frontContacts().forEach(contact=>contact.border.forEach(line=>{
+   const coords=[[line[0][1],line[0][0]],[line[1][1],line[1][0]]];
+   frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#f0a05b',weight:7,opacity:.24,lineCap:'round',interactive:false}));
+   frontLayer.addLayer(L.polyline(coords,{pane:'frontPane',color:'#e65a4f',weight:2.8,opacity:.98,dashArray:'7 3',lineCap:'round',interactive:false}));
+  }));
  }
  function toggleFronts(){
   frontsVisible=!frontsVisible;state.frontsVisible=frontsVisible;
@@ -258,11 +268,7 @@
   document.getElementById('pax-own-country')?.addEventListener('click',()=>syncUnits());
   window.addEventListener('wc-regions-loaded',()=>{rebuildIndex();bindRegionLayer();armies().forEach(u=>unitRegion(u));syncUnits()});
   document.getElementById('wc-front-toggle')?.classList.toggle('active',frontsVisible);
-  function frontSnapshot(){
-  if(!featureByKey.size)rebuildIndex();const out=[];
-  Object.entries(occupied()).forEach(([k,occ])=>{const f=featureByKey.get(k);if(!f)return;for(const n of adjacent(f)){const enemy=controller(n.feature);if(enemy!==occ.controller&&atWar(occ.controller,enemy))out.push({heldRegion:name(f.properties||{}),heldBy:occ.controller,enemyRegion:name(n.feature.properties||{}),enemyCountry:enemy})}});
-  return out.slice(0,100);
-  }
+  function frontSnapshot(){return frontContacts().map(x=>({heldRegion:name(x.a.properties||{}),heldBy:x.sideA,enemyRegion:name(x.b.properties||{}),enemyCountry:x.sideB})).slice(0,100)}
   window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId,toggleFronts,frontSnapshot,snapshot:()=>armies().map(u=>({id:u.id,name:u.name,regionKey:u.regionKey,strength:u.strength,location:u.location}))};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
