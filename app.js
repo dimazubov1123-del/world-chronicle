@@ -223,19 +223,21 @@ function refreshRegions(){
 function loadRegions(){
  if(!state.regionsVisible||regionData||regionsLoading)return;regionsLoading=true;
  $('map-hint').textContent='Загружаются административные границы регионов…';
- fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson',{cache:'force-cache'})
+ fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('Regions unavailable');return r.json()})
   .then(async data=>{
     const supplements=[
-     ['Andorra','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/AND/ADM1/geoBoundaries-AND-ADM1_simplified.geojson'],
-     ['Liechtenstein','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LIE/ADM1/geoBoundaries-LIE-ADM1_simplified.geojson'],
-     ['Luxembourg','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LUX/ADM1/geoBoundaries-LUX-ADM1_simplified.geojson'],
-     ['San Marino','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/SMR/ADM1/geoBoundaries-SMR-ADM1_simplified.geojson'],
-     ['Malta','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/MLT/ADM1/geoBoundaries-MLT-ADM1_simplified.geojson']
+     ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],
+     ['BEL','Belgium'],['NLD','Netherlands'],['CHE','Switzerland'],['AUT','Austria'],['CZE','Czechia'],['SVK','Slovakia'],
+     ['SVN','Slovenia'],['HRV','Croatia'],['SRB','Serbia'],['MNE','Montenegro'],['ALB','Albania'],['MKD','North Macedonia'],
+     ['BIH','Bosnia and Herzegovina'],['EST','Estonia'],['LVA','Latvia'],['LTU','Lithuania'],['IRL','Ireland'],
+     ['DNK','Denmark'],['ISL','Iceland'],['CYP','Cyprus'],['BGR','Bulgaria'],['HUN','Hungary'],['ROU','Romania'],['PRT','Portugal'],['GRC','Greece']
     ];
-    const extra=await Promise.all(supplements.map(async ([admin,url])=>{try{const r=await fetch(url,{cache:'force-cache'});if(!r.ok)return [];const g=await r.json();return (g.features||[]).map(f=>({...f,properties:{...(f.properties||{}),admin,name:(f.properties||{}).shapeName||(f.properties||{}).name||admin,geonunit:admin}}))}catch(e){return []}}));
-    const replaced=new Set(supplements.map(x=>x[0]));
-    data.features=(data.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||''))).concat(...extra);
+    let boundaryIndex=[];
+    try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok)boundaryIndex=await metaResponse.json()}catch(e){}
+    const extra=await Promise.all(supplements.map(async ([iso,admin])=>{try{const meta=boundaryIndex.find(x=>x.boundaryISO===iso&&x.boundaryType==='ADM1');const url=meta?.simplifiedGeometryGeoJSON;if(!url)return {admin,features:[]};const r=await fetch(url,{cache:'force-cache'});if(!r.ok)return {admin,features:[]};const g=await r.json();return {admin,features:(g.features||[]).map(f=>({...f,properties:{...(f.properties||{}),admin,name:(f.properties||{}).shapeName||(f.properties||{}).name||admin,geonunit:admin,iso_a3:iso}}))}}catch(e){return {admin,features:[]}}}));
+    const replaced=new Set(extra.filter(x=>x.features.length).map(x=>x.admin));
+    data.features=(data.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).geonunit||''))).concat(...extra.map(x=>x.features));
     regionData=data;window.__wcRegionData=data;window.dispatchEvent(new Event('wc-regions-loaded'));for(const f of data.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}regionsLoading=false;refreshRegions();$('map-hint').textContent='Подробные административные регионы загружены по всему миру.'})
   .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
 }
@@ -246,11 +248,11 @@ if(window.L){
  regionLayer=L.geoJSON(null,{pane:'regionsPane',renderer:canvasRenderer,style:()=>{const z=map.getZoom();return{color:'#d8c69e',weight:z<3?.35:z<5?.65:.95,opacity:z<3?.35:.72,fillColor:'#d8c69e',fillOpacity:.025}},onEachFeature:(feature,layer)=>{const p=feature.properties||{},name=p.name||p.name_en||p.NAME||p.shapeName||'Регион';layer.bindTooltip(name,{sticky:true,className:'wc-region-tooltip'});layer.on('click',()=>{$('map-hint').textContent='Регион: '+name+' · '+(p.admin||p.ADMIN||p.shapeGroup||'')})}}).addTo(map);
  cityLayer=L.layerGroup([], {pane:'citiesPane'}).addTo(map);
  map.on('moveend zoomend',updateCityVisibility);map.on('zoomend',()=>{if(regionLayer)regionLayer.setStyle(()=>{const z=map.getZoom();return{color:'#d8c69e',weight:z<3?.35:z<5?.65:.95,opacity:z<3?.35:.72,fillColor:'#d8c69e',fillOpacity:.025}})});
- fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson',{cache:'force-cache'})
+ fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('GeoJSON unavailable');return r.json()})
   .then(data=>{
    window.__wcCountryFeatures=data.features||[];
-   state.geoLayer=L.geoJSON(data,{renderer:canvasRenderer,style:styleFeature,smoothFactor:1.25,interactive:true,bubblingMouseEvents:false,noClip:true,onEachFeature:(feature,layer)=>{
+   state.geoLayer=L.geoJSON(data,{renderer:canvasRenderer,style:styleFeature,smoothFactor:4.5,interactive:true,bubblingMouseEvents:false,noClip:true,onEachFeature:(feature,layer)=>{
     const info=getCountryInfo(feature),bounds=layer.getBounds();if(bounds&&bounds.isValid())countryMeta.push({info,bounds,feature});
     layer.on('click',()=>inspectCountry(info.id,feature,info.name,info.flag));
    }}).addTo(map);
