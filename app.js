@@ -238,7 +238,7 @@ function ensureCountryRegionCoverage(){
 function loadRegions(){
  if(!state.regionsVisible||regionData||regionsLoading)return;regionsLoading=true;
  $('map-hint').textContent='Загружаются административные границы регионов…';
- fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',{cache:'force-cache'})
+ fetch(WC_REGION_GEO_URL,{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('Regions unavailable');return r.json()})
   .then(data=>{
    regionData=data;window.__wcRegionData=data;regionIndex.clear();
