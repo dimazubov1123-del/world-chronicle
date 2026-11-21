@@ -532,7 +532,20 @@ $('political-view').onclick=()=>{if(state.geoLayer)state.geoLayer.setStyle(style
 $('help-btn').onclick=()=>modal('World Chronicle — справка','<p>Вы руководите государством в альтернативной исторической песочнице. Один ход равен одной неделе. Решения меняют казну, экономику, стабильность, престиж и военную мощь.</p><p>Кампания автоматически сохраняется в локальном хранилище этого браузера. Используйте разделы слева для управления страной.</p>');
 $('sound-toggle').onclick=()=>setSoundEnabled(!soundEnabled);setSoundEnabled(soundEnabled);$('modal-close').onclick=closeModal;$('wc-news-close').onclick=closeNewsDrawer;$('wc-news-scrim').onclick=closeNewsDrawer;$('wc-news-period').onchange=e=>renderNewsDrawer(e.target.value);$('wc-news-show-all').onclick=()=>{const s=$('wc-news-period');if(s){s.value='all';renderNewsDrawer('all')}};$('wc-front-toggle').onclick=()=>window.WC_WAR?.toggleFronts?.();document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNewsDrawer()});$('event-continue').onclick=closeChronicleEvent;$('event-overlay').onclick=e=>{if(e.target===$('event-overlay'))closeChronicleEvent()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChronicleEvent()});$('modal-backdrop').onclick=e=>{if(e.target===$('modal-backdrop'))closeModal()};
 document.addEventListener('click',e=>{if(e.target.closest('button')&&!e.target.closest('#sound-toggle')&&!e.target.closest('#next-turn'))playSound('click');const nav=e.target.closest('.nav-item');if(nav){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));nav.classList.add('active');const pages={overview:closeModal,diplomacy,economy,military,politics,elections};if(pages[nav.dataset.action])pages[nav.dataset.action]()}const a=e.target.closest('.action-card');if(a){if(a.dataset.action==='decree')decree();if(a.dataset.action==='speech')speech()}});
-load();state.regionsVisible=true;state.armies=state.armies||[];state.occupiedRegions=state.occupiedRegions||{};ensureElection();if(state.regionsVisible){$('regions-toggle').classList.add('active');loadRegions()}if(!state.events.length)event('ПОЛИТИКА','Кампания готова к началу','Выберите направление развития государства и сделайте первый ход.');selectCountry(state.selected||'Russia');updateUI();
+try {
+ load();
+ state.regionsVisible=true;
+ state.armies=state.armies||[];
+ state.occupiedRegions=state.occupiedRegions||{};
+ ensureElection();
+ if(state.regionsVisible){$('regions-toggle')?.classList.add('active');loadRegions()}
+ if(!state.events.length)event('ПОЛИТИКА','Кампания готова к началу','Выберите направление развития государства и сделайте первый ход.');
+ selectCountry(state.selected||'Russia');
+ updateUI();
+} catch(startupError) {
+ console.error('[World Chronicle] Ошибка начальной загрузки кампании:',startupError);
+ window.WC_STARTUP_ERROR=startupError;
+}
 
 
 // Map-first command dock: local simulation log, existing diplomacy and advisor systems.
@@ -604,7 +617,7 @@ load();state.regionsVisible=true;state.armies=state.armies||[];state.occupiedReg
 /* Main menu and multiplayer lobby shell. Network actions stay explicitly offline until backend exists. */
 (function(){
  const menu=document.getElementById('wc-main-menu'),content=document.getElementById('wc-menu-content');if(!menu||!content)return;
- const PROFILE_KEY='wcPlayerProfile_v1',DRAFT_KEY='wcCampaignDrafts_v1';let profile=localStorage.getItem(PROFILE_KEY)||'Игрок';
+ const PROFILE_KEY='wcPlayerProfile_v1',DRAFT_KEY='wcCampaignDrafts_v1';let profile='Игрок';try{profile=localStorage.getItem(PROFILE_KEY)||'Игрок'}catch(storageError){console.warn('[World Chronicle] Локальное хранилище недоступно:',storageError)}
  function profileSync(){document.getElementById('wc-profile-name').textContent=profile;document.getElementById('wc-profile-initial').textContent=(profile.trim()[0]||'И').toUpperCase()}
  function enterGame(){menu.classList.add('wc-menu-hide');document.querySelector('.app-shell').style.display='flex';setTimeout(()=>{if(map)map.invalidateSize({pan:false});openCountrySelection(true)},120)}
  function page(name){document.querySelectorAll('.wc-menu-nav').forEach(b=>b.classList.toggle('active',b.dataset.menuPage===name));content.classList.add('wc-menu-page');
