@@ -112,10 +112,12 @@
  }
  function bindRegionLayer(){
   if(!regionLayer||!window.L)return;
-  regionLayer.on('layeradd',e=>{
-   const layer=e.layer;if(!layer||layer.__wcWarBound||!layer.feature)return;layer.__wcWarBound=true;
+  const attach=layer=>{
+   if(!layer||layer.__wcWarBound||!layer.feature)return;layer.__wcWarBound=true;
    layer.on('click',evt=>{if(evt.originalEvent)L.DomEvent.stopPropagation(evt.originalEvent);openRegion(layer.feature)});
-  });
+  };
+  regionLayer.eachLayer(attach);
+  regionLayer.on('layeradd',e=>attach(e.layer));
   regionLayer.setStyle(styleRegion);
  }
  function init(){
