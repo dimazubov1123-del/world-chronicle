@@ -666,3 +666,102 @@ function countryPicker(){openCountrySelection(false)}
  },true);
  window.WC_MULTIPLAYER={session,api,showNetwork,refresh:async()=>{const ss=session();return ss?api('/api/rooms/'+ss.code+'?token='+encodeURIComponent(ss.token)):null},saveSession};
 })();
+
+
+/* Shared diplomacy, room chat and conversational state advisor */
+(function(){
+ const cssEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const localAIHistory=[],localAIResults=[];
+ let panel=null,activeTab='chat',social=null,refreshTimer=null,aiTargetName='';
+ const api=()=>window.WC_MULTIPLAYER;
+ const session=()=>api()?.session?.();
+ const request=(path,method='GET',body=null)=>{const ss=session();if(!ss)throw Error('Вы не подключены к сетевой комнате.');return api().api('/api/rooms/'+ss.code+path+(method==='GET'?'?token='+encodeURIComponent(ss.token):''),method,method==='GET'?null:{...body,token:ss.token})};
+ const world=()=>window.WC_AI?.snapshot?.()||{};
+ const addLocal=(title,body,type='advisor')=>{localAIResults.unshift({title,body,type,createdAt:new Date().toISOString()});localAIResults.splice(30)};
+ function ensurePanel(){
+  if(panel)return panel;
+  panel=document.createElement('section');panel.id='wc-social-panel';panel.className='wc-social-panel';panel.innerHTML='<header><div><small>WORLD CHRONICLE · ДИПЛОМАТИЯ</small><h2 id="wc-social-title">Связь государств</h2><span id="wc-social-room"></span></div><button id="wc-social-close" aria-label="Закрыть">×</button></header><nav><button data-social-tab="chat">Общий чат</button><button data-social-tab="diplomacy">Дипломатия</button><button data-social-tab="advisor">Советник <i id="wc-social-unread"></i></button></nav><main id="wc-social-content"></main>';
+  document.body.appendChild(panel);
+  panel.querySelector('#wc-social-close').onclick=close;
+  panel.querySelectorAll('[data-social-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.socialTab;render();});
+  panel.addEventListener('click',async e=>{
+   const respond=e.target.closest('[data-proposal-action]');if(respond){const id=respond.dataset.proposalId,action=respond.dataset.proposalAction;let response='';if(action==='counter')response=prompt('Ваше встречное предложение:','Предлагаем согласовать условия на следующем раунде переговоров.')||'';else if(action==='reject')response=prompt('Причина отказа (необязательно):','')||'';try{await request('/proposals/'+id+'/respond','POST',{action,response});await refresh();render()}catch(err){alert(err.message)}}
+  });
+  return panel;
+ }
+ function close(){if(panel)panel.classList.remove('open');if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null}}
+ async function refresh(){try{social=await request('/social');updateBadge();return social}catch(e){social=null;updateBadge();return null}}
+ function updateBadge(){
+  const unread=(social?.notifications||[]).filter(n=>!n.read).length+localAIResults.length;
+  const b=document.getElementById('wc-social-notification');if(b){b.textContent=unread?'УВЕДОМЛЕНИЯ · '+unread:'СВЯЗЬ';b.classList.toggle('has-unread',unread>0)}
+  const u=panel?.querySelector('#wc-social-unread');if(u)u.textContent=unread?'· '+unread:'';
+ }
+ function esc(s){return cssEsc(s)}
+ function open(tab){
+  const p=ensurePanel();activeTab=tab||'chat';p.classList.add('open');
+  if(!session()){p.querySelector('#wc-social-room').textContent='Доступно после подключения к сетевой кампании';p.querySelector('#wc-social-content').innerHTML='<p class="wc-social-empty">Сначала подключитесь к сетевой комнате.</p>';return}
+  refresh().then(render);if(!refreshTimer)refreshTimer=setInterval(()=>refresh().then(()=>{if(panel?.classList.contains('open'))render()}),3000);
+  render();
+ }
+ function render(){
+  if(!panel?.classList.contains('open'))return;
+  panel.querySelectorAll('[data-social-tab]').forEach(b=>b.classList.toggle('active',b.dataset.socialTab===activeTab));
+  const ss=session(),me=social?.players?.find(p=>p.countryId===ss?.countryId);
+  panel.querySelector('#wc-social-room').textContent=ss?'Комната '+ss.code+' · '+ss.countryId:'';
+  panel.querySelector('#wc-social-title').textContent=activeTab==='chat'?'Общий чат комнаты':activeTab==='diplomacy'?'Дипломатические отношения':'Советник государства';
+  updateBadge();
+  const el=panel.querySelector('#wc-social-content');
+  if(!social){el.innerHTML='<p class="wc-social-empty">Нет соединения с сервером комнаты. Попробуйте обновить вкладку.</p><button id="wc-social-retry">Повторить</button>';el.querySelector('#wc-social-retry').onclick=()=>refresh().then(render);return}
+  if(activeTab==='chat')renderRoomChat(el);
+  else if(activeTab==='diplomacy')renderDiplomacy(el,ss);
+  else renderAdvisor(el,me);
+ }
+ function renderRoomChat(el){
+  el.innerHTML='<div class="wc-social-log" id="wc-room-chat-log">'+(social.chat||[]).map(m=>'<article><small>'+esc(m.countryId)+' · '+esc(m.playerName)+' · '+new Date(m.createdAt).toLocaleString()+'</small><p>'+esc(m.message)+'</p></article>').join('')+'</div><form id="wc-room-chat-form"><textarea id="wc-room-chat-input" maxlength="1200" placeholder="Сообщение всем участникам комнаты…"></textarea><button>Отправить в общий чат</button></form>';
+  const log=el.querySelector('#wc-room-chat-log');log.scrollTop=log.scrollHeight;
+  el.querySelector('#wc-room-chat-form').onsubmit=async e=>{e.preventDefault();const input=el.querySelector('#wc-room-chat-input'),message=input.value.trim();if(!message)return;try{await request('/chat','POST',{message});input.value='';await refresh();render()}catch(err){alert(err.message)}};
+ }
+ function renderDiplomacy(el,ss){
+  const peers=(social.players||[]).filter(p=>p.countryId!==ss.countryId);
+  const opts=peers.map(p=>'<option value="'+esc(p.countryId)+'">'+esc(p.countryId)+' · '+esc(p.name)+(p.online?' · в сети':' · не в сети')+'</option>').join('');
+  const msgs=(social.messages||[]).filter(m=>m.fromCountryId===ss.countryId||m.toCountryId===ss.countryId);
+  const proposals=(social.proposals||[]).slice().reverse();
+  const notices=(social.notifications||[]).filter(n=>!n.read);
+  el.innerHTML='<div class="wc-social-notices">'+notices.map(n=>'<div><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></div>').join('')+'</div><div class="wc-social-block"><label>ГОСУДАРСТВО-СОБЕСЕДНИК</label><select id="wc-dip-target">'+opts+'<option value="__ai__">Государство под управлением ИИ</option></select><input id="wc-dip-ai-country" placeholder="Название страны, если собеседник — ИИ" /></div><div class="wc-social-log">'+msgs.map(m=>'<article class="'+(m.fromCountryId===ss.countryId?'mine':'')+'"><small>'+esc(m.fromCountryId)+' → '+esc(m.toCountryId)+'</small><p>'+esc(m.message)+'</p></article>').join('')+'</div><form id="wc-dip-message-form" class="wc-social-compose"><textarea id="wc-dip-message" maxlength="1600" placeholder="Личное дипломатическое сообщение…"></textarea><button>Отправить сообщение</button></form><div class="wc-social-block"><label>ДИПЛОМАТИЧЕСКАЯ ИНИЦИАТИВА</label><select id="wc-dip-type"><option value="embassy">Направить посольство / улучшить отношения</option><option value="treaty">Договор о сотрудничестве</option><option value="nonaggression">Пакт о ненападении</option><option value="alliance">Военный союз</option><option value="economic">Экономическое соглашение</option><option value="ceasefire">Предложение о перемирии</option></select><input id="wc-dip-title" maxlength="140" placeholder="Название предложения (необязательно)"><textarea id="wc-dip-proposal" maxlength="1800" placeholder="Опишите условия: цель посольства, взаимные обязательства, сроки…"></textarea><button id="wc-dip-send-proposal">Направить инициативу</button></div><h3>Переговоры и предложения</h3><div class="wc-social-proposals">'+(proposals.length?proposals.map(p=>'<article><small>'+esc(p.fromCountryId)+' → '+esc(p.toCountryId)+' · '+esc(p.status)+'</small><b>'+esc(p.title)+'</b><p>'+esc(p.message)+'</p>'+(p.response?'<blockquote>'+esc(p.response)+'</blockquote>':'')+(p.toCountryId===ss.countryId&&p.status==='pending'?'<div class="wc-social-actions"><button data-proposal-id="'+esc(p.id)+'" data-proposal-action="accept">Принять</button><button data-proposal-id="'+esc(p.id)+'" data-proposal-action="reject">Отклонить</button><button data-proposal-id="'+esc(p.id)+'" data-proposal-action="counter">Встречные условия</button></div>':'')+'</article>').join(''):'<p class="wc-social-empty">Пока нет дипломатических предложений.</p>')+'</div>';
+  const target=el.querySelector('#wc-dip-target'),ai=el.querySelector('#wc-dip-ai-country');target.onchange=()=>ai.style.display=target.value==='__ai__'?'block':'none';ai.style.display='none';
+  el.querySelector('#wc-dip-message-form').onsubmit=async e=>{e.preventDefault();const message=el.querySelector('#wc-dip-message').value.trim(),toCountryId=target.value;if(!message)return;if(toCountryId==='__ai__'){await aiMessage(ai.value,message,false);return}try{await request('/diplomacy/messages','POST',{toCountryId,message});await refresh();render()}catch(err){alert(err.message)}};
+  el.querySelector('#wc-dip-send-proposal').onclick=async()=>{const message=el.querySelector('#wc-dip-proposal').value.trim(),type=el.querySelector('#wc-dip-type').value,to=target.value,title=el.querySelector('#wc-dip-title').value.trim();if(!message)return alert('Опишите условия инициативы.');if(to==='__ai__'){await aiMessage(ai.value,message,true,type,title);return}try{await request('/proposals','POST',{toCountryId:to,type,title,message});await refresh();render()}catch(err){alert(err.message)}};
+ }
+ async function aiMessage(name,message,isProposal,type='diplomatic',title=''){
+  const countryName=String(name||'').trim();if(!countryName)return alert('Укажите название государства, управляемого ИИ.');
+  const ss=session(),history=localAIHistory.filter(x=>x.countryName===countryName).slice(-8);
+  try{
+   const result=await api().api('/api/ai/diplomacy','POST',{countryId:countryName,countryName,message,proposalType:type,isProposal,history,world:world()});
+   localAIHistory.push({countryName,from:'Вы',text:message});
+   localAIHistory.push({countryName,from:countryName,text:result.reply||'Правительство рассмотрит обращение.'});
+   const status=result.proposalStatus||'pending',decision=result.decision||'none';
+   const statusText={accepted:'ПРИНЯТО',rejected:'ОТКЛОНЕНО',counteroffer:'ВСТРЕЧНЫЕ УСЛОВИЯ',pending:'НА РАССМОТРЕНИИ',none:'ОТВЕТ'};
+   addLocal(isProposal?'Ответ на дипломатическое предложение: '+statusText[status]:'Ответ правительства '+countryName,result.advisorMessage||result.reply||'Ответ получен.', 'diplomacy');
+   if(isProposal&&decision==='accept')addLocal('Предложение принято: '+(title||type),countryName+' согласилось с инициативой. Ответ ИИ: '+result.reply,'treaty');
+   const historyHtml=localAIHistory.filter(x=>x.countryName===countryName).slice(-10).map(x=>'<article class="'+(x.from==='Вы'?'mine':'')+'"><small>'+esc(x.from)+'</small><p>'+esc(x.text)+'</p></article>').join('');
+   const el=panel.querySelector('#wc-social-content');const resultBox=document.createElement('div');resultBox.className='wc-social-ai-result';resultBox.innerHTML='<b>Советник · '+esc(countryName)+'</b><p>'+esc(result.advisorMessage||result.reply||'Ответ получен.')+'</p><small>Статус инициативы: '+esc(statusText[status]||'Ответ')+'</small>';el.prepend(resultBox);updateBadge();
+  }catch(err){alert('Не удалось получить дипломатический ответ ИИ: '+err.message)}
+ }
+ function renderAdvisor(el){
+  const inbox=(social.notifications||[]).slice().reverse();
+  const notices=[...localAIResults,...inbox].slice(0,30);
+  el.innerHTML='<div class="wc-advisor-intro"><b>Кабинет государственного советника</b><p>Задавайте вопросы о внутренней политике, экономике, обороне, международных отношениях и поступивших предложениях. Советник отделяет факты от оценок.</p></div><div class="wc-social-notices">'+(notices.length?notices.map(n=>'<article><small>'+esc(n.type||'УВЕДОМЛЕНИЕ')+' · '+esc(n.createdAt?new Date(n.createdAt).toLocaleString():'сейчас')+'</small><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></article>').join(''):'<p class="wc-social-empty">Новых сообщений и дипломатических уведомлений нет.</p>')+'</div><form id="wc-advisor-form" class="wc-social-compose"><textarea id="wc-advisor-question" maxlength="1600" placeholder="Например: стоит ли принимать предложение США о военном союзе? Какие риски для нашей страны?"></textarea><button>Спросить советника</button></form><div id="wc-advisor-answer" class="wc-social-ai-result"></div>';
+  el.querySelector('#wc-advisor-form').onsubmit=async e=>{e.preventDefault();const q=el.querySelector('#wc-advisor-question').value.trim();if(!q)return;const btn=e.submitter;btn.disabled=true;btn.textContent='Советник анализирует…';try{const r=await api().api('/api/ai/advisor-chat','POST',{question:q,history:localAIHistory.slice(-10),world:world(),inbox:notices.slice(0,8)});localAIHistory.push({from:'Вы',text:q},{from:'Советник',text:r.answer||'Нет ответа'});el.querySelector('#wc-advisor-answer').innerHTML='<b>Ответ советника</b><p>'+esc(r.answer||'Ответ не получен.')+'</p>'+(r.notification?'<small>'+esc(r.notification)+'</small>':'');el.querySelector('#wc-advisor-question').value='';if(r.notification)addLocal('Советник обращает внимание',r.notification)}catch(err){el.querySelector('#wc-advisor-answer').textContent='Ошибка: '+err.message}finally{btn.disabled=false;btn.textContent='Спросить советника'}};
+  request('/social/read','POST',{}).then(refresh).catch(()=>{});
+ }
+ function mountControls(){
+  const toolbar=document.querySelector('.pax-map-toolbar');if(toolbar&&!document.getElementById('wc-social-notification')){const b=document.createElement('button');b.id='wc-social-notification';b.className='pax-float-button';b.textContent='СВЯЗЬ';b.onclick=()=>open('advisor');toolbar.appendChild(b)}
+  document.addEventListener('click',e=>{
+   const chat=e.target.closest('.pax-float-button[data-pax-panel="chat"]');if(chat){e.preventDefault();e.stopImmediatePropagation();open('diplomacy');return}
+   const advisor=e.target.closest('#pax-advisor-open');if(advisor){e.preventDefault();e.stopImmediatePropagation();open('advisor');return}
+   const notice=e.target.closest('#wc-social-notification');if(notice){e.preventDefault();e.stopImmediatePropagation();open('advisor')}
+  },true);
+  if(session())refresh().then(updateBadge);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountControls);else mountControls();
+})();
