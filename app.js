@@ -64,8 +64,8 @@ function initCityMarkers(){
  }
 }
 function updateCityVisibility(){
- if(!map)return;const visible=state.citiesVisible&&map.getZoom()>=3.4,labels=visible&&map.getZoom()>=5.2;
- for(const m of cityMarkers){m.setStyle({opacity:visible?1:0,fillOpacity:visible?.95:0});if(labels){if(!m.isTooltipOpen())m.openTooltip()}else if(m.isTooltipOpen())m.closeTooltip();}
+ if(!map)return;const visible=state.citiesVisible&&map.getZoom()>=3.4,labels=visible&&map.getZoom()>=5.2,bounds=map.getBounds();
+ for(const m of cityMarkers){m.setStyle({opacity:visible?1:0,fillOpacity:visible?.95:0});const showLabel=labels&&bounds.contains(m.getLatLng());if(showLabel){if(!m.isTooltipOpen())m.openTooltip()}else if(m.isTooltipOpen())m.closeTooltip();}
 }
 const regionIndex=new Map();
 function refreshRegions(){
@@ -87,7 +87,8 @@ if(window.L){
  map.createPane('regionsPane');map.getPane('regionsPane').style.zIndex=420;map.createPane('citiesPane');map.getPane('citiesPane').style.zIndex=460;
  regionLayer=L.geoJSON(null,{pane:'regionsPane',renderer:canvasRenderer,style:{color:'#f4dfb4',weight:.65,opacity:.85,fillColor:'#f4dfb4',fillOpacity:.035},onEachFeature:(feature,layer)=>{const p=feature.properties||{},name=p.name||p.name_en||p.NAME||'Регион';layer.bindTooltip(name,{sticky:true,className:'wc-region-tooltip'});layer.on('click',()=>{$('map-hint').textContent='Регион: '+name+' · '+(p.admin||p.ADMIN||'')})}}).addTo(map);
  cityLayer=L.layerGroup([], {pane:'citiesPane'}).addTo(map);
- map.on('zoomend',updateCityVisibility);
+ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:8,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:1,reuseTiles:true,detectRetina:false,fadeAnimation:false,attribution:'© OpenStreetMap contributors · © CARTO'}).addTo(map);
+ map.on('moveend zoomend',updateCityVisibility);
  fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson',{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('GeoJSON unavailable');return r.json()})
   .then(data=>{
