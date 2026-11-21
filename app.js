@@ -246,7 +246,7 @@ function loadRegions(){
    indexRegions();regionsLoading=false;refreshRegions();ensureCountryRegionCoverage();window.dispatchEvent(new Event('wc-regions-loaded'));
    $('map-hint').textContent='Основные регионы загружены. Детализируются административные границы Европы…';
    const supplements=[
-    ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],
+    ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],['VAT','Vatican City'],
     ['BEL','Belgium'],['NLD','Netherlands'],['CHE','Switzerland'],['AUT','Austria'],['CZE','Czechia'],['SVK','Slovakia'],
     ['SVN','Slovenia'],['HRV','Croatia'],['SRB','Serbia'],['MNE','Montenegro'],['ALB','Albania'],['MKD','North Macedonia'],
     ['BIH','Bosnia and Herzegovina'],['EST','Estonia'],['LVA','Latvia'],['LTU','Lithuania'],['IRL','Ireland'],
@@ -270,7 +270,7 @@ function loadRegions(){
     const extra=await Promise.all(supplements.map(async ([iso,label])=>{
      const canonical=countryByIso.get(iso)||label;
      let features=await loadBoundary(iso,1),level=1;
-     if(microstates.has(iso)&&features.length<=1){const deeper=await loadBoundary(iso,2);if(deeper.length>features.length){features=deeper;level=2}}
+     if(microstates.has(iso)){const deeper=await loadBoundary(iso,2);if(deeper.length>features.length){features=deeper;level=2}}
      return {iso,admin:canonical,label,level,features:features.map(f=>({...f,properties:{...(f.properties||{}),admin:canonical,name:(f.properties||{}).shapeName||(f.properties||{}).shapeName_en||(f.properties||{}).name||label,geonunit:canonical,iso_a3:iso,gbLevel:level}}))};
     }));
     return extra;
