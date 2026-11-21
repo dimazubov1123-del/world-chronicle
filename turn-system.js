@@ -142,9 +142,9 @@
    if(jump){jump.disabled=busy||!host||room.phase!=='lobby'||room.players.length<2||!room.players.every(p=>p.ready);jump.title=host?'Время продвигается после готовности всех участников':'Только ведущий продвигает время'}
    if(next)next.disabled=busy||!host||room.phase!=='lobby'||room.players.length<2||!room.players.every(p=>p.ready);
    if(d.snapshot&&Number(d.snapshot.turn)>Number(state.turn||0)){
-    const selected=net.countryId,pending=state.pendingOrders||[];
+    const selected=net.countryId;
     Object.keys(d.snapshot).forEach(k=>{if(k!=='selected'&&k!=='pendingOrders'&&k!=='geoLayer')state[k]=d.snapshot[k]});
-    state.selected=selected;state.pendingOrders=pending;updateUI();window.WC_WAR?.sync?.();save();window.openNewsDrawer?.(state.turn);
+    state.selected=selected;state.pendingOrders=[];updateUI();refreshOrderQueue();window.WC_WAR?.sync?.();save();window.openNewsDrawer?.(state.turn);
    }
   }catch(e){if(status)status.textContent='СЕТЬ · ПЕРЕПОДКЛЮЧЕНИЕ'}
  }
