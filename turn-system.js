@@ -23,6 +23,8 @@
   state.pendingOrders=state.pendingOrders||[];
   state.pendingOrders.push({text:value,createdAt:dateText()});
   if(input)input.value='';
+  const net=window.WC_MULTIPLAYER?.session?.();
+  if(net)window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/order','POST',{token:net.token,order:pendingText().join('\n\n')}).catch(e=>alert('Не удалось отправить приказ в комнату: '+e.message));
   refreshOrderQueue();save();
   const send=$('pax-send');if(send){send.textContent='Приказ добавлен ✓';setTimeout(()=>{if(send.isConnected)send.textContent='Добавить приказ в ход'},1600)}
  }
@@ -36,6 +38,17 @@
  async function continuePeriod(weeks){
   if(busy)return;
   if(!window.WC_AI?.enabled?.()){alert('Не задан адрес AI-сервера. Откройте игру через Railway или проверьте подключение.');return}
+  const net=window.WC_MULTIPLAYER?.session?.()||null;
+  let roomTurn=null,begun=false,multiplayerOrders=[];
+  if(net){
+   try{
+    const roomData=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'?token='+encodeURIComponent(net.token));
+    if(!roomData.host){alert('В сетевой кампании время может продвигать только ведущий.');return}
+    if(roomData.room.phase!=='lobby'||roomData.room.players.length<2||!roomData.room.players.every(p=>p.ready)){alert('Нельзя продолжить: дождитесь подключения минимум двух игроков и готовности каждого участника.');return}
+    const start=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/begin','POST',{token:net.token});
+    multiplayerOrders=start.orders||[];roomTurn=roomData.room.turn;begun=true;
+   }catch(e){alert(e.message);return}
+  }
   const orders=pendingText();
   const order=orders.length?orders.join('\n\n'):'Игрок не отдал отдельного приказа. Продолжи естественное развитие государства и мира.';
   const startDate=dateText();
@@ -46,7 +59,7 @@
   const commandContext=orders.length?window.WC_WAR?.commandSnapshot?.():null;
   setBusy(true);
   try{
-   const result=await window.WC_AI.request('world-turn',{...base,commandContext,date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
+   const result=await window.WC_AI.request('world-turn',{...base,commandContext,multiplayerOrders:multiplayerOrders.filter(p=>p.order),date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
    commandOperations=Array.isArray(result.commandOperations)?result.commandOperations:[];
    commandClarification=String(result.commandClarification||'').trim();
    commandSummary=String(result.commandSummary||'').trim();
@@ -96,11 +109,43 @@
    state.periodArchive=state.periodArchive.slice(0,100);
    state.currentPeriod=null;
    window.openNewsDrawer?.(state.turn);
+   if(net&&begun){
+    const shared={...state,geoLayer:null,pendingOrders:[]},snapshot=JSON.parse(JSON.stringify(shared));
+    await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/complete','POST',{token:net.token,snapshot,weeks});
+   }
   }catch(err){
    window.__replayingEvents=false;
+   if(net&&begun)try{await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/abort','POST',{token:net.token})}catch(e){}
    alert('ИИ не смог рассчитать период. Время не продвинуто, приказы сохранены.\n\n'+err.message);
    const advisor=$('advisor-text');if(advisor)advisor.textContent='Ошибка расчёта: '+err.message;
   }finally{setBusy(false);save()}
+ }
+ async function toggleNetworkReady(){
+  const net=window.WC_MULTIPLAYER?.session?.();if(!net)return;
+  const button=$('wc-network-ready');
+  try{
+   const d=await window.WC_MULTIPLAYER.refresh(),me=d.room.players.find(p=>p.id===d.playerId);
+   await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/ready','POST',{token:net.token,ready:!me?.ready});
+   await syncMultiplayer();
+  }catch(e){alert(e.message)}
+ }
+ async function syncMultiplayer(){
+  const net=window.WC_MULTIPLAYER?.session?.();if(!net)return;
+  const status=$('wc-network-status'),ready=$('wc-network-ready');
+  if(status)status.hidden=false;if(ready)ready.hidden=false;
+  try{
+   const d=await window.WC_MULTIPLAYER.refresh(),room=d.room,me=room.players.find(p=>p.id===d.playerId),host=d.host;
+   if(status)status.textContent='СЕТЬ · '+room.code+' · '+room.players.filter(p=>p.ready).length+'/'+room.players.length+' ГОТОВЫ';
+   if(ready){ready.disabled=room.phase!=='lobby';ready.textContent=me?.ready?'✓ ВЫ ГОТОВЫ':'ОТМЕТИТЬ ГОТОВНОСТЬ';ready.classList.toggle('is-ready',!!me?.ready)}
+   const jump=$('pax-jump-btn'),next=$('next-turn');
+   if(jump){jump.disabled=busy||!host||room.phase!=='lobby'||room.players.length<2||!room.players.every(p=>p.ready);jump.title=host?'Время продвигается после готовности всех участников':'Только ведущий продвигает время'}
+   if(next)next.disabled=busy||!host||room.phase!=='lobby'||room.players.length<2||!room.players.every(p=>p.ready);
+   if(d.snapshot&&Number(d.snapshot.turn)>Number(state.turn||0)){
+    const selected=net.countryId,pending=state.pendingOrders||[];
+    Object.keys(d.snapshot).forEach(k=>{if(k!=='selected'&&k!=='pendingOrders'&&k!=='geoLayer')state[k]=d.snapshot[k]});
+    state.selected=selected;state.pendingOrders=pending;updateUI();window.WC_WAR?.sync?.();save();window.openNewsDrawer?.(state.turn);
+   }
+  }catch(e){if(status)status.textContent='СЕТЬ · ПЕРЕПОДКЛЮЧЕНИЕ'}
  }
  // This game is now paused between player-issued periods; no real-time ticking.
  state.paused=true;
@@ -111,6 +156,8 @@
  document.addEventListener('click',e=>{
   const send=e.target.closest('#pax-send');
   if(send){e.preventDefault();e.stopImmediatePropagation();queueOrder();return}
+  const ready=e.target.closest('#wc-network-ready');
+  if(ready){e.preventDefault();e.stopImmediatePropagation();toggleNetworkReady();return}
   const jump=e.target.closest('#pax-jump-btn');
   if(jump){e.preventDefault();e.stopImmediatePropagation();continuePeriod(Number($('pax-jump-size')?.value)||1);return}
   const next=e.target.closest('#next-turn');
@@ -120,6 +167,13 @@
  const next=$('next-turn');if(next)next.innerHTML='ПРОДОЛЖИТЬ ВРЕМЯ <span>→</span>';
  const period=$('pax-jump-size');if(period){period.title='Сколько времени должен просчитать ИИ';period.setAttribute('aria-label','Продолжительность периода')}
  const pause=$('pause-button');if(pause)pause.style.display='none';
+ const netSession=window.WC_MULTIPLAYER?.session?.();
+ if(netSession){
+  document.body.classList.add('wc-multiplayer-active');
+  if($('wc-network-status'))$('wc-network-status').hidden=false;
+  if($('wc-network-ready'))$('wc-network-ready').hidden=false;
+  syncMultiplayer();setInterval(syncMultiplayer,2500);
+ }
  document.querySelectorAll('.speed-button,.speed-label').forEach(x=>x.style.display='none');
  document.querySelectorAll('.main-nav .nav-item[data-action="politics"],.main-nav .nav-item[data-action="elections"],.main-nav .nav-item[data-action="economy"],.main-nav .nav-item[data-action="military"],.action-card,.pax-float-button[data-pax-panel="projects"]').forEach(x=>x.style.display='none');
  const help=$('help-btn');if(help)help.onclick=()=>modal('Как проходит игровой период','<p>1. Откройте «Действия» и напишите свободный приказ обычным текстом.</p><p>2. Нажмите «Добавить приказ в ход». Можно подготовить несколько распоряжений.</p><p>3. Выберите длительность: неделя, месяц, три месяца, полгода или год.</p><p>4. Нажмите «Продолжить время». ИИ обработает приказы, действия других государств и публичную хронику. Если запрос завершится ошибкой, дата не изменится, а приказы останутся в очереди.</p>');
