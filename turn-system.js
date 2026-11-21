@@ -73,7 +73,7 @@
    });
    window.__replayingEvents=false;
    state.pendingOrders=[];
-   updateUI();save();
+   updateUI();window.WC_WAR?.sync?.();save();
    const advisor=$('advisor-text');if(advisor)advisor.textContent=result.advisor||'Период рассчитан. Подробности находятся в хронике событий и карточках государств.';
    const drawer=$('pax-drawer-content');
    if(drawer&&$('pax-orders'))refreshOrderQueue();
