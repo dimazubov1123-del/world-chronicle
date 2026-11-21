@@ -208,13 +208,36 @@
   if(unit.regionKey&&featureByKey.has(unit.regionKey))return featureByKey.get(unit.regionKey);
   const f=initialRegion(state.selected,unit.position||[0,0]);if(f){unit.regionKey=fkey(f);unit.location=name(f.properties||{})}return f;
  }
+ function animateUnit(unit,from,to,feature,capture=false){
+  if(!window.L||!map||!Array.isArray(from)||!Array.isArray(to)){syncUnits();return}
+  const marker=L.marker(from,{pane:'unitsPane',interactive:false,icon:L.divIcon({className:'wc-army-marker wc-army-moving',html:'<span>⚑</span><small>'+esc(unit.name)+'</small>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map);
+  const started=performance.now(),duration=1050;
+  const tick=now=>{
+   const t=Math.min(1,(now-started)/duration),ease=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+   marker.setLatLng([from[0]+(to[0]-from[0])*ease,from[1]+(to[1]-from[1])*ease]);
+   if(t<1)requestAnimationFrame(tick);
+   else{map.removeLayer(marker);syncUnits();if(capture)flashCapture(feature)}
+  };
+  requestAnimationFrame(tick);
+ }
+ function flashCapture(feature){
+  if(!window.L||!map||!feature)return;
+  const pulse=L.geoJSON(feature,{interactive:false,style:{color:'#f4d58d',weight:3,opacity:0,fillColor:'#e8b75d',fillOpacity:.05,className:'wc-capture-flash'}}).addTo(map);
+  const start=performance.now(),duration=1500;
+  const tick=now=>{
+   const t=Math.min(1,(now-start)/duration),wave=Math.sin(t*Math.PI);
+   pulse.setStyle({color:'#ffe5a6',weight:2+wave*5,opacity:wave*.95,fillColor:'#e8b75d',fillOpacity:.06+wave*.42});
+   if(t<1)requestAnimationFrame(tick);else{map.removeLayer(pulse);if(regionLayer)regionLayer.setStyle(styleRegion)}
+  };
+  requestAnimationFrame(tick);
+ }
  function moveUnit(unit,feature){
   if(!canEnter(unit,feature))return alert('Нельзя переместить соединение напрямую. Целевой регион должен граничить с текущей позицией дивизии.');
   const p=feature.properties||{},adminId=admin(p),controllerId=controller(feature);
   if(controllerId!==state.selected)return alert('Для перехода во вражеский регион требуется атака и состояние войны.');
-  unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(p);
+  const previous=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(p);
   event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение передислоцировано на один соседний регион: '+unit.location+'.',{location:unit.location});
-  syncUnits();save();closeModal();
+  animateUnit(unit,previous,unit.position,feature,false);save();closeModal();
  }
  function attackRegion(unit,enemyAdmin,feature){
   if(!atWar(state.selected,enemyAdmin))return alert('Сначала объявите войну государству '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'.');
@@ -222,6 +245,7 @@
   const p=feature.properties||{},regionNameValue=name(p),targetKey=fkey(feature),defense=6+Math.floor(Math.random()*7),attack=unit.strength+Math.floor(Math.random()*8);
   const won=attack>=defense+5||Math.random()<Math.max(.18,Math.min(.88,.38+(unit.strength-defense)*.045));
   if(won){
+   const previous=Array.isArray(unit.position)?unit.position.slice():center(unitRegion(unit));
    occupied()[targetKey]={admin:admin(p),name:regionNameValue,controller:state.selected,turn:state.turn};
    unit.regionKey=targetKey;unit.position=center(feature);unit.location=regionNameValue;unit.strength=Math.max(1,unit.strength-1);
    event('ВОЕННОЕ ДЕЛО','Захвачен регион: '+regionNameValue,'Войска заняли регион «'+regionNameValue+'», ранее находившийся под контролем государства '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'.',{importance:'major',location:regionNameValue,background:'В рамках продолжающейся войны командование начало наступательную операцию на сопредельном участке фронта.',development:'Соединение '+unit.name+' продвинулось из соседнего региона, преодолело сопротивление и установило контроль над административной территорией. Линия соприкосновения переместилась на новый рубеж.',consequences:'Регион перешёл под военный контроль '+((countries[state.selected]||{}).name||state.selected)+'. Дальнейшее продвижение возможно только в соседние регионы.',reaction:'Сведения о реакции иностранных государств появятся в хронике по мере поступления публичных заявлений.'});
@@ -230,7 +254,7 @@
    event('ВОЕННОЕ ДЕЛО','Наступление остановлено: '+regionNameValue,'Соединение '+unit.name+' не смогло занять регион. Оборона противника удержала позиции, атакующая часть понесла потери.',{importance:'major',location:regionNameValue,background:'Вооружённые силы предприняли попытку наступления на сопредельный участок обороны противника.',development:'Обороняющиеся войска удержали рубежи. Атакующее соединение понесло потери и было вынуждено отойти на исходные позиции.',consequences:'Регион остаётся под контролем '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'. Боеспособность соединения снижена.',reaction:'Операция отражена в военной хронике.'});
    if(unit.strength===0){state.armies=armies().filter(x=>x.id!==unit.id);selectedUnitId=null;event('ВОЕННОЕ ДЕЛО','Соединение утратило боеспособность','Остатки личного состава выведены из строя, соединение больше не может участвовать в операциях.');}
   }
-  syncUnits();updateUI();save();closeModal();if(regionLayer)regionLayer.setStyle(styleRegion);
+  if(won)animateUnit(unit,previous,unit.position,feature,true);else syncUnits();updateUI();save();closeModal();if(regionLayer)regionLayer.setStyle(styleRegion);
  }
  function styleRegion(feature){
   const p=feature.properties||{},adminId=admin(p),occ=occupied()[fkey(feature)],ctrl=occ?.controller||adminId;
@@ -268,7 +292,60 @@
   window.addEventListener('wc-regions-loaded',()=>{adjacencyCache.clear();rebuildIndex();bindRegionLayer();armies().forEach(u=>unitRegion(u));syncUnits()});
   document.getElementById('wc-front-toggle')?.classList.toggle('active',frontsVisible);
   function frontSnapshot(){return frontContacts().map(x=>({heldRegion:name(x.a.properties||{}),heldBy:x.sideA,enemyRegion:name(x.b.properties||{}),enemyCountry:x.sideB})).slice(0,100)}
-  window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId,toggleFronts,frontSnapshot,snapshot:()=>armies().map(u=>({id:u.id,name:u.name,regionKey:u.regionKey,strength:u.strength,location:u.location}))};
+  function commandSnapshot(){
+   if(!featureByKey.size)rebuildIndex();
+   const own=regionFeatures().filter(f=>admin(f.properties||{})===state.selected),neighborCountries=new Set();
+   own.forEach(f=>adjacent(f).forEach(n=>neighborCountries.add(admin(n.feature.properties||{}))));
+   wars().forEach(w=>String(w).split('|').forEach(id=>neighborCountries.add(id)));
+   const allowed=new Set([state.selected,...neighborCountries]);
+   const regions=regionFeatures().filter(f=>allowed.has(admin(f.properties||{}))).slice(0,700).map(f=>({key:fkey(f),name:name(f.properties||{}),countryId:admin(f.properties||{}),controller:controller(f)}));
+   return {date:dateText(),player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected},treasury:state.treasury,manpower:state.manpower,army:state.army,wars:wars().slice(),armies:armies().map(u=>({id:u.id,name:u.name,type:u.type,strength:u.strength,location:u.location,regionKey:unitRegion(u)?u.regionKey:null})),regions,countries:(countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name}))};
+  }
+  function executeOrders(operations){
+   const results=[],specs={'Пехотная дивизия':{cost:4,manpower:10,strength:10},'Моторизованная дивизия':{cost:6,manpower:8,strength:9},'Танковая дивизия':{cost:8,manpower:7,strength:12},'Воздушно-десантная дивизия':{cost:7,manpower:6,strength:8}};
+   (Array.isArray(operations)?operations:[]).slice(0,8).forEach(op=>{
+    try{
+     if(op.type==='recruit'){
+      const spec=specs[op.unitType];if(!spec){results.push('Отклонено формирование: неизвестный тип соединения.');return}
+      if(state.treasury<spec.cost||state.manpower<spec.manpower){results.push('Не удалось сформировать '+op.unitType+': недостаточно казны или людских ресурсов.');return}
+      state.treasury-=spec.cost;state.manpower-=spec.manpower;state.army=(Number(state.army)||0)+spec.manpower;
+      const position=capitals[state.selected]||centerForCountry(state.selected),feature=initialRegion(state.selected,position),unit={id:'DIV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),name:String(op.name||'Новое соединение').slice(0,45),type:op.unitType,strength:spec.strength,position:feature?center(feature):position,location:feature?name(feature.properties||{}):'Район столицы',regionKey:feature?fkey(feature):null,createdTurn:state.turn};
+      armies().push(unit);selectedUnitId=unit.id;results.push('Сформировано '+unit.name+' ('+unit.type+'), '+spec.manpower+' тыс.; размещение: '+unit.location+'.');
+      event('ВОЕННОЕ ДЕЛО','Сформировано соединение: '+unit.name,'По приказу верховного командования сформировано соединение '+unit.type+'. Численность — '+spec.manpower+' тыс. военнослужащих; место дислокации — '+unit.location+'.',{importance:'normal',location:unit.location});
+     }else if(op.type==='move'||op.type==='attack'){
+      const unit=armies().find(u=>u.id===op.unitId),feature=featureByKey.get(op.targetRegionKey);if(!unit||!feature){results.push('Операция отклонена: соединение или регион не найден.');return}
+      const ctrl=controller(feature),from=unitRegion(unit);
+      if(!from||!adjacent(from).some(x=>fkey(x.feature)===fkey(feature))){results.push('Операция отклонена: '+unit.name+' не может пройти напрямую в несоседний регион.');return}
+      if(op.type==='move'){
+       if(ctrl!==state.selected){results.push('Передислокация отменена: регион не находится под вашим контролем.');return}
+       const prev=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(feature.properties||{});animateUnit(unit,prev,unit.position,feature,false);
+       results.push(unit.name+' передислоцировано в '+unit.location+'.');event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение перемещено в соседний регион '+unit.location+'.',{location:unit.location});
+      }else{
+       if(!atWar(state.selected,ctrl)){results.push('Наступление отменено: с государством-контролёром региона не объявлена война.');return}
+       attackRegion(unit,ctrl,feature);results.push('Проведена атака '+unit.name+' на регион '+name(feature.properties||{})+'. Результат отражён в военной хронике.');
+      }
+     }else if(op.type==='declare_war'){
+      const target=op.targetCountryId;if(!target||target===state.selected){results.push('Объявление войны отклонено: некорректная цель.');return}
+      if(atWar(state.selected,target)){results.push('Война с '+target+' уже продолжается.');return}
+      wars().push(warKey(state.selected,target));results.push('Объявлена война государству '+((countries[target]||{}).name||target)+'.');event('ВОЕННОЕ ДЕЛО','Объявлена война: '+((countries[target]||{}).name||target),'По распоряжению главы государства объявлено состояние войны. Вооружённые силы приведены в готовность.',{importance:'major'});
+     }else if(op.type==='mobilize'){
+      const amount=Math.max(1,Math.min(25,Number(op.amount)||5)),cost=Math.ceil(amount*.7);
+      if(state.treasury<cost){results.push('Мобилизация не проведена: недостаточно средств на её организацию.');return}
+      state.treasury-=cost;state.manpower=Math.min(100,Number(state.manpower||0)+amount);
+      results.push('Проведены мобилизационные мероприятия: резерв людских ресурсов увеличен на '+Math.min(amount,100-Number(state.manpower||0))+' условных тыс.');event('ВОЕННОЕ ДЕЛО','Объявлены мобилизационные мероприятия','Правительство направило средства на развёртывание мобилизационного резерва.',{importance:'major'});
+     }else if(op.type==='policy'){
+      const scale=op.scale===2?2:1,policies={industry:{cost:8,title:'Программа промышленного развития',effect:()=>{state.gdp+=3*scale;state.stability=Math.max(0,state.stability-1)}},infrastructure:{cost:7,title:'Инфраструктурная программа',effect:()=>{state.gdp+=2*scale;state.prestige+=2*scale}},social:{cost:8,title:'Программа социальной поддержки',effect:()=>{state.stability+=3*scale;state.gdp=Math.max(1,state.gdp-1)}},military:{cost:10,title:'Увеличение военных расходов',effect:()=>{state.army+=3*scale;state.stability=Math.max(0,state.stability-1)}},stability:{cost:6,title:'Программа общественной стабильности',effect:()=>{state.stability+=2*scale;state.prestige+=1*scale}}},cfg=policies[op.policy];
+      if(!cfg||state.treasury<cfg.cost*scale){results.push('Государственная программа отклонена: недостаточно средств.');return}
+      state.treasury-=cfg.cost*scale;cfg.effect();state.stability=Math.min(100,state.stability);state.prestige=Math.min(100,state.prestige);results.push('Начата государственная программа: '+cfg.title+'.');event('ГОСУДАРСТВО',cfg.title,'По приказу правительства выделено ₽ '+cfg.cost*scale+' млрд. Программа включена в государственный план.',{importance:'normal'});
+     }else if(op.type==='disband'){
+      const unit=armies().find(u=>u.id===op.unitId);if(!unit){results.push('Расформирование отклонено: соединение не найдено.');return}
+      state.armies=armies().filter(x=>x.id!==unit.id);results.push('Расформировано соединение '+unit.name+'.');event('ВОЕННОЕ ДЕЛО','Расформировано соединение: '+unit.name,'Военное командование вывело соединение из состава вооружённых сил.');
+     }
+    }catch(err){results.push('Операция не выполнена: '+String(err.message||err).slice(0,180))}
+   });
+   syncUnits();updateUI();save();return results;
+  }
+  window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId,toggleFronts,frontSnapshot,snapshot:()=>armies().map(u=>({id:u.id,name:u.name,regionKey:u.regionKey,strength:u.strength,location:u.location})),commandSnapshot,executeOrders};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
