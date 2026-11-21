@@ -10,7 +10,7 @@ app.set('trust proxy',1);
 const PORT=process.env.PORT||8080;
 const ORIGIN=(process.env.CORS_ORIGIN||'').split(',').map(x=>x.trim()).filter(Boolean);
 const PROVIDER=(process.env.AI_PROVIDER||'openrouter').toLowerCase();
-const MODEL=PROVIDER==='groq'?(process.env.GROQ_MODEL||'openai/gpt-oss-120b'):(process.env.OPENROUTER_MODEL||'openrouter/free');
+const MODEL=PROVIDER==='gemini'?(process.env.GEMINI_MODEL||'gemini-3.8-flash'):PROVIDER==='groq'?(process.env.GROQ_MODEL||'openai/gpt-oss-120b'):(process.env.OPENROUTER_MODEL||'openrouter/free');
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 
 app.use(cors({origin(origin,cb){if(!origin||!ORIGIN.length||ORIGIN.includes(origin))return cb(null,true);cb(new Error('Origin not allowed'));}}));
@@ -23,26 +23,51 @@ app.get('/app.js',(_req,res)=>res.sendFile(path.join(ROOT,'app.js')));
 app.get('/turn-system.js',(_req,res)=>res.sendFile(path.join(ROOT,'turn-system.js')));
 app.get('/warfare.js',(_req,res)=>res.sendFile(path.join(ROOT,'warfare.js')));
 app.get('/styles.css',(_req,res)=>res.sendFile(path.join(ROOT,'styles.css')));
-app.get('/health',(_req,res)=>res.json({ok:true,service:'world-chronicle',provider:PROVIDER,configured:Boolean(PROVIDER==='groq'?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY),model:MODEL,hosting:'railway'}));
+app.get('/health',(_req,res)=>res.json({ok:true,service:'world-chronicle',provider:PROVIDER,configured:Boolean(PROVIDER==='gemini'?process.env.GEMINI_API_KEY:PROVIDER==='groq'?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY),model:MODEL,hosting:'railway'}));
 
 const clean=(v,n=4000)=>String(v??'').slice(0,n);
 async function ask(system,user,maxTokens=1200){
- const groq=PROVIDER==='groq';
- const apiKey=groq?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY;
- if(!apiKey){const e=new Error(groq?'На сервере не задан GROQ_API_KEY.':'На сервере не задан OPENROUTER_API_KEY.');e.status=503;throw e}
- const body={model:MODEL,temperature:.55,messages:[{role:'system',content:system},{role:'user',content:user}]};
- if(groq){body.max_completion_tokens=maxTokens;body.reasoning_effort='low';body.reasoning_format='hidden';body.response_format={type:'json_object'};}else body.max_tokens=maxTokens;
- if(!groq&&MODEL.startsWith('nvidia/'))body.provider={only:['nvidia'],allow_fallbacks:false};
- const headers={Authorization:'Bearer '+apiKey,'Content-Type':'application/json'};
- if(groq)headers['Groq-Beta']='inference-metrics';
- if(!groq){headers['HTTP-Referer']=process.env.SITE_URL||'https://world-chronicle-production.up.railway.app/';headers['X-Title']='World Chronicle';}
- const endpoint=groq?'https://api.groq.com/openai/v1/chat/completions':'https://openrouter.ai/api/v1/chat/completions';
+ const groq=PROVIDER==='groq',gemini=PROVIDER==='gemini';
+ const apiKey=gemini?process.env.GEMINI_API_KEY:groq?process.env.GROQ_API_KEY:process.env.OPENROUTER_API_KEY;
+ if(!apiKey){const keyName=gemini?'GEMINI_API_KEY':groq?'GROQ_API_KEY':'OPENROUTER_API_KEY';const e=new Error('На сервере не задан '+keyName+'.');e.status=503;throw e}
+ let endpoint,headers,body;
+ if(gemini){
+  endpoint='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(MODEL)+':generateContent';
+  headers={'x-goog-api-key':apiKey,'Content-Type':'application/json'};
+  body={
+   systemInstruction:{parts:[{text:system}]},
+   contents:[{role:'user',parts:[{text:user}]}],
+   generationConfig:{temperature:.55,maxOutputTokens:maxTokens,responseMimeType:'application/json'}
+  };
+ }else{
+  body={model:MODEL,temperature:.55,messages:[{role:'system',content:system},{role:'user',content:user}]};
+  if(groq){body.max_completion_tokens=maxTokens;body.reasoning_effort='low';body.reasoning_format='hidden';body.response_format={type:'json_object'};}else body.max_tokens=maxTokens;
+  if(!groq&&MODEL.startsWith('nvidia/'))body.provider={only:['nvidia'],allow_fallbacks:false};
+  headers={Authorization:'Bearer '+apiKey,'Content-Type':'application/json'};
+  if(groq)headers['Groq-Beta']='inference-metrics';
+  if(!groq){headers['HTTP-Referer']=process.env.SITE_URL||'https://world-chronicle-production.up.railway.app/';headers['X-Title']='World Chronicle';}
+  endpoint=groq?'https://api.groq.com/openai/v1/chat/completions':'https://openrouter.ai/api/v1/chat/completions';
+ }
  const started=Date.now();
  const r=await fetch(endpoint,{method:'POST',headers,body:JSON.stringify(body)});
  const d=await r.json().catch(()=>({}));
- if(groq&&r.ok)console.log('[Groq metrics]',JSON.stringify({elapsedMs:Date.now()-started,model:MODEL,metadata:d.metadata||null,usage:d.usage||null}));
- if(!r.ok){const retry=r.headers.get('retry-after');const detail=d.error?.message||'AI provider error '+r.status;const e=new Error(r.status===429?(detail+(retry?' Повторите через '+retry+' сек.':'')):detail);e.status=r.status===429?429:502;console.error('[AI provider error]',JSON.stringify({provider:PROVIDER,status:r.status,message:detail,retryAfter:retry,remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')}));throw e}
- const c=d.choices?.[0]?.message?.content;if(!c)throw new Error('ИИ не вернул ответ.');return c
+ if(!r.ok){
+  const retry=r.headers.get('retry-after'),detail=d.error?.message||d.error?.status||d.message||'AI provider error '+r.status;
+  const e=new Error(r.status===429?(detail+(retry?' Повторите через '+retry+' сек.':'')):detail);e.status=r.status===429?429:502;
+  console.error('[AI provider error]',JSON.stringify({provider:PROVIDER,status:r.status,message:detail,retryAfter:retry,elapsedMs:Date.now()-started}));
+  throw e;
+ }
+ let result;
+ if(gemini){
+  result=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
+  if(!result){const reason=d.promptFeedback?.blockReason||d.candidates?.[0]?.finishReason||'empty response';throw new Error('Gemini не вернул текстовый ответ: '+reason+'.')}
+  console.log('[Gemini metrics]',JSON.stringify({elapsedMs:Date.now()-started,model:MODEL,usage:d.usageMetadata||null}));
+ }else{
+  if(groq)console.log('[Groq metrics]',JSON.stringify({elapsedMs:Date.now()-started,model:MODEL,metadata:d.metadata||null,usage:d.usage||null}));
+  result=d.choices?.[0]?.message?.content;
+ }
+ if(!result)throw new Error('ИИ не вернул ответ.');
+ return result;
 }
 function parse(raw){
  const t=raw.replace(/^\x60\x60\x60(?:json)?\s*/i,'').replace(/\s*\x60\x60\x60$/,'').trim();
