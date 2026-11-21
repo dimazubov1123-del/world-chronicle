@@ -5,6 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const app=express();
+app.set('trust proxy',1);
 const PORT=process.env.PORT||8080;
 const ORIGIN=(process.env.CORS_ORIGIN||'').split(',').map(x=>x.trim()).filter(Boolean);
 const MODEL=process.env.OPENROUTER_MODEL||'openrouter/free';
