@@ -20,7 +20,7 @@
     </header>
     <main class="workspace">
       <aside class="left-panel panel">
-        <div class="panel-heading"><div><span class="eyebrow">ГЛАВНОЕ МЕНЮ</span><h2>Кампания</h2></div><span class="online-pill">КАМПАНИЯ</span></div>
+        <div class="panel-heading"><div><span class="eyebrow">ЦЕНТР УПРАВЛЕНИЯ</span><h2>Государство</h2></div><span class="online-pill">КАМПАНИЯ</span></div>
         <label class="field-label" for="scenario-select">ИСТОРИЧЕСКИЙ СЦЕНАРИЙ</label>
         <select id="scenario-select" class="select-control">
           <option value="1936">Европа на распутье · 1936</option>
@@ -42,7 +42,7 @@
           <div class="stat-box"><span>ВООРУЖЁННЫЕ СИЛЫ</span><strong id="military">Высокие</strong></div>
         </div>
         <div class="section-rule"></div>
-        <div class="section-title"><span>ГОСУДАРСТВЕННЫЕ ДЕЛА</span><span class="muted">01—04</span></div>
+        <div class="section-title"><span>УПРАВЛЕНИЕ ГОСУДАРСТВОМ</span><span class="muted">01—06</span></div>
         <nav class="main-nav">
           <button class="nav-item active" data-action="overview"><span class="nav-icon">▦</span>Обзор государства</button>
           <button class="nav-item" data-action="diplomacy"><span class="nav-icon">⇄</span>Дипломатия</button>
@@ -59,7 +59,7 @@
           <div class="map-tools"><button class="tool-button active" id="political-view">◈ Политическая</button><button class="tool-button" id="regions-toggle">▦ Регионы</button><button class="tool-button active" id="cities-toggle">● Города</button><button class="tool-button" id="reset-map">↺ Сбросить</button></div>
         </div>
         <div id="map" aria-label="Интерактивная карта мира"></div>
-        <div class="map-legend"><span><i class="legend-swatch selected"></i>Выбранная страна</span><span><i class="legend-swatch neutral"></i>Другие государства</span><span class="map-attribution">Карта: OpenStreetMap · Natural Earth</span></div>
+        <div class="map-legend"><span><i class="legend-swatch selected"></i>Выбранная страна</span><span><i class="legend-swatch neutral"></i>Другие государства</span><span class="map-attribution">Границы: Natural Earth · векторная карта</span></div>
         <div class="map-hint" id="map-hint"><span>⌖</span> Выберите страну на карте, чтобы изучить её</div>
       </section>
       <aside class="right-panel panel">
@@ -78,7 +78,7 @@
     </main>
     <footer class="bottom-bar"><div class="footer-left"><span class="live-dot"></span> МИР АКТИВЕН <span class="meta-divider"></span><span id="turn-label">ХОД 001</span></div><div class="time-controls"><span class="speed-label">СКОРОСТЬ</span><button class="speed-button active" data-speed="1">Ⅰ</button><button class="speed-button" data-speed="2">Ⅱ</button><button class="speed-button" data-speed="3">Ⅲ</button><button class="pause-button" id="pause-button">Ⅱ ПАУЗА</button><button class="next-button" id="next-turn">СЛЕДУЮЩИЙ ХОД <span>→</span></button></div><div class="footer-right">WORLD CHRONICLE <span>BUILD 0.2 · © 2026</span></div></footer>
   </div>
-  <div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal"><button class="modal-close" id="modal-close">×</button><span class="eyebrow">WORLD CHRONICLE</span><h2 id="modal-title">Выберите государство</h2><div id="modal-content"></div></section></div>
+  <div class="event-overlay hidden" id="event-overlay" role="dialog" aria-modal="true" aria-labelledby="event-heading"><section class="event-window"><div class="event-topline"><span>WORLD CHRONICLE</span><span id="event-date">1 января 1936 · ГОСУДАРСТВО</span></div><div class="event-art"><div class="event-art-grid"></div><div class="event-emblem" id="event-emblem">§</div><div class="event-art-caption">ВЕСТИ ГОСУДАРСТВА</div></div><div class="event-copy"><span class="eyebrow">ВАЖНОЕ СОБЫТИЕ</span><h2 id="event-heading">Событие</h2><p id="event-description"></p><button class="event-continue" id="event-continue">ПРОДОЛЖИТЬ <span>→</span></button></div></section></div><div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal"><button class="modal-close" id="modal-close">×</button><span class="eyebrow">WORLD CHRONICLE</span><h2 id="modal-title">Выберите государство</h2><div id="modal-content"></div></section></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
