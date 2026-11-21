@@ -235,7 +235,7 @@
   if(!canEnter(unit,feature))return alert('Нельзя переместить соединение напрямую. Целевой регион должен граничить с текущей позицией дивизии.');
   const p=feature.properties||{},adminId=admin(p),controllerId=controller(feature);
   if(controllerId!==state.selected)return alert('Для перехода во вражеский регион требуется атака и состояние войны.');
-  const previous=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(p);
+  const previous=Array.isArray(unit.position)?unit.position.slice():center(unitRegion(unit));unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(p);
   event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение передислоцировано на один соседний регион: '+unit.location+'.',{location:unit.location});
   animateUnit(unit,previous,unit.position,feature,false);save();closeModal();
  }
@@ -244,8 +244,9 @@
   if(!canEnter(unit,feature))return alert('Регион не граничит с текущей позицией дивизии. Наступление через несоседнюю территорию невозможно.');
   const p=feature.properties||{},regionNameValue=name(p),targetKey=fkey(feature),defense=6+Math.floor(Math.random()*7),attack=unit.strength+Math.floor(Math.random()*8);
   const won=attack>=defense+5||Math.random()<Math.max(.18,Math.min(.88,.38+(unit.strength-defense)*.045));
+  let previous=null;
   if(won){
-   const previous=Array.isArray(unit.position)?unit.position.slice():center(unitRegion(unit));
+   previous=Array.isArray(unit.position)?unit.position.slice():center(unitRegion(unit));
    occupied()[targetKey]={admin:admin(p),name:regionNameValue,controller:state.selected,turn:state.turn};
    unit.regionKey=targetKey;unit.position=center(feature);unit.location=regionNameValue;unit.strength=Math.max(1,unit.strength-1);
    event('ВОЕННОЕ ДЕЛО','Захвачен регион: '+regionNameValue,'Войска заняли регион «'+regionNameValue+'», ранее находившийся под контролем государства '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'.',{importance:'major',location:regionNameValue,background:'В рамках продолжающейся войны командование начало наступательную операцию на сопредельном участке фронта.',development:'Соединение '+unit.name+' продвинулось из соседнего региона, преодолело сопротивление и установило контроль над административной территорией. Линия соприкосновения переместилась на новый рубеж.',consequences:'Регион перешёл под военный контроль '+((countries[state.selected]||{}).name||state.selected)+'. Дальнейшее продвижение возможно только в соседние регионы.',reaction:'Сведения о реакции иностранных государств появятся в хронике по мере поступления публичных заявлений.'});
@@ -329,10 +330,11 @@
       if(atWar(state.selected,target)){results.push('Война с '+target+' уже продолжается.');return}
       wars().push(warKey(state.selected,target));results.push('Объявлена война государству '+((countries[target]||{}).name||target)+'.');event('ВОЕННОЕ ДЕЛО','Объявлена война: '+((countries[target]||{}).name||target),'По распоряжению главы государства объявлено состояние войны. Вооружённые силы приведены в готовность.',{importance:'major'});
      }else if(op.type==='mobilize'){
-      const amount=Math.max(1,Math.min(25,Number(op.amount)||5)),cost=Math.ceil(amount*.7);
+      const amount=Math.max(1,Math.min(25,Number(op.amount)||5)),cost=Math.ceil(amount*.7),before=Number(state.manpower||0),added=Math.min(amount,100-before);
       if(state.treasury<cost){results.push('Мобилизация не проведена: недостаточно средств на её организацию.');return}
-      state.treasury-=cost;state.manpower=Math.min(100,Number(state.manpower||0)+amount);
-      results.push('Проведены мобилизационные мероприятия: резерв людских ресурсов увеличен на '+Math.min(amount,100-Number(state.manpower||0))+' условных тыс.');event('ВОЕННОЕ ДЕЛО','Объявлены мобилизационные мероприятия','Правительство направило средства на развёртывание мобилизационного резерва.',{importance:'major'});
+      if(added<=0){results.push('Мобилизационный резерв уже достиг условного предела.');return}
+      state.treasury-=cost;state.manpower=before+added;
+      results.push('Проведены мобилизационные мероприятия: резерв людских ресурсов увеличен на '+added+' условных тыс.');event('ВОЕННОЕ ДЕЛО','Объявлены мобилизационные мероприятия','Правительство направило средства на развёртывание мобилизационного резерва.',{importance:'major'});
      }else if(op.type==='policy'){
       const scale=op.scale===2?2:1,policies={industry:{cost:8,title:'Программа промышленного развития',effect:()=>{state.gdp+=3*scale;state.stability=Math.max(0,state.stability-1)}},infrastructure:{cost:7,title:'Инфраструктурная программа',effect:()=>{state.gdp+=2*scale;state.prestige+=2*scale}},social:{cost:8,title:'Программа социальной поддержки',effect:()=>{state.stability+=3*scale;state.gdp=Math.max(1,state.gdp-1)}},military:{cost:10,title:'Увеличение военных расходов',effect:()=>{state.army+=3*scale;state.stability=Math.max(0,state.stability-1)}},stability:{cost:6,title:'Программа общественной стабильности',effect:()=>{state.stability+=2*scale;state.prestige+=1*scale}}},cfg=policies[op.policy];
       if(!cfg||state.treasury<cfg.cost*scale){results.push('Государственная программа отклонена: недостаточно средств.');return}
