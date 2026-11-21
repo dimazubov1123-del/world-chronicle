@@ -255,7 +255,7 @@
    event('ВОЕННОЕ ДЕЛО','Наступление остановлено: '+regionNameValue,'Соединение '+unit.name+' не смогло занять регион. Оборона противника удержала позиции, атакующая часть понесла потери.',{importance:'major',location:regionNameValue,background:'Вооружённые силы предприняли попытку наступления на сопредельный участок обороны противника.',development:'Обороняющиеся войска удержали рубежи. Атакующее соединение понесло потери и было вынуждено отойти на исходные позиции.',consequences:'Регион остаётся под контролем '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'. Боеспособность соединения снижена.',reaction:'Операция отражена в военной хронике.'});
    if(unit.strength===0){state.armies=armies().filter(x=>x.id!==unit.id);selectedUnitId=null;event('ВОЕННОЕ ДЕЛО','Соединение утратило боеспособность','Остатки личного состава выведены из строя, соединение больше не может участвовать в операциях.');}
   }
-  if(won)animateUnit(unit,previous,unit.position,feature,true);else syncUnits();updateUI();save();closeModal();if(regionLayer)regionLayer.setStyle(styleRegion);
+  if(won)animateUnit(unit,previous,unit.position,feature,true);else syncUnits();updateUI();save();closeModal();if(regionLayer)regionLayer.setStyle(styleRegion);return won;
  }
  function styleRegion(feature){
   const p=feature.properties||{},adminId=admin(p),occ=occupied()[fkey(feature)],ctrl=occ?.controller||adminId;
@@ -323,12 +323,17 @@
        results.push(unit.name+' передислоцировано в '+unit.location+'.');event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение перемещено в соседний регион '+unit.location+'.',{location:unit.location});
       }else{
        if(!atWar(state.selected,ctrl)){results.push('Наступление отменено: с государством-контролёром региона не объявлена война.');return}
-       attackRegion(unit,ctrl,feature);results.push('Проведена атака '+unit.name+' на регион '+name(feature.properties||{})+'. Результат отражён в военной хронике.');
+       const won=attackRegion(unit,ctrl,feature);results.push(won?'Захвачен регион '+name(feature.properties||{})+' силами '+unit.name+'.':'Наступление '+unit.name+' на регион '+name(feature.properties||{})+' остановлено обороной противника.');
       }
      }else if(op.type==='declare_war'){
       const target=op.targetCountryId;if(!target||target===state.selected){results.push('Объявление войны отклонено: некорректная цель.');return}
       if(atWar(state.selected,target)){results.push('Война с '+target+' уже продолжается.');return}
       wars().push(warKey(state.selected,target));results.push('Объявлена война государству '+((countries[target]||{}).name||target)+'.');event('ВОЕННОЕ ДЕЛО','Объявлена война: '+((countries[target]||{}).name||target),'По распоряжению главы государства объявлено состояние войны. Вооружённые силы приведены в готовность.',{importance:'major'});
+     }else if(op.type==='diplomacy'){
+      const target=op.targetCountryId,label=(countries[target]||{}).name||target;
+      if(op.action==='improve'){state.relations[target]=Math.min(100,Number(state.relations[target]||0)+8);results.push('Дипломатическая инициатива в отношении '+label+': отношение улучшено.');event('ДИПЛОМАТИЯ','Направлена дипломатическая инициатива: '+label,'Правительство распорядилось предпринять публичные шаги для улучшения двусторонних отношений.');}
+      else if(op.action==='sanctions'){state.relations[target]=Math.max(-100,Number(state.relations[target]||0)-8);results.push('Введены ограничительные меры в отношении '+label+'.');event('ДИПЛОМАТИЯ','Объявлены ограничительные меры: '+label,'Правительство объявило о введении ограничительных мер в отношении государства '+label+'.',{importance:'major'});}
+      else if(op.action==='treaty'){const pair=warKey(state.selected,target);if(!state.treaties.includes(pair))state.treaties.push(pair);results.push('Подготовлено и зарегистрировано соглашение о сотрудничестве с '+label+'.');event('ДИПЛОМАТИЯ','Заключено соглашение о сотрудничестве','Правительства '+((countries[state.selected]||{}).name||state.selected)+' и '+label+' оформили двустороннее соглашение.',{importance:'major'});}
      }else if(op.type==='mobilize'){
       const amount=Math.max(1,Math.min(25,Number(op.amount)||5)),cost=Math.ceil(amount*.7),before=Number(state.manpower||0),added=Math.min(amount,100-before);
       if(state.treasury<cost){results.push('Мобилизация не проведена: недостаточно средств на её организацию.');return}
