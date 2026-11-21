@@ -104,34 +104,5 @@
   <script src="app.js?v=20261122-fix1"></script>
   <script src="turn-system.js?v=20261122-fix1"></script>
   <script src="warfare.js?v=20261122-fix1"></script>
-  <script>
-  // Startup safety net: the menu must remain usable even if a later game module throws.
-  (function(){
-    window.addEventListener('error',function(e){
-      let box=document.getElementById('wc-runtime-error');
-      if(!box){box=document.createElement('div');box.id='wc-runtime-error';box.style.cssText='position:fixed;z-index:100000;left:16px;right:16px;bottom:16px;padding:12px 16px;background:#401d20;color:#fff;border:1px solid #b85b60;border-radius:6px;font:13px/1.5 sans-serif;white-space:pre-wrap';document.body.appendChild(box)}
-      box.textContent='Ошибка игрового модуля: '+(e.message||'неизвестная ошибка')+' · '+(e.filename||'')+':'+(e.lineno||'');
-    });
-    document.addEventListener('click',function(e){
-      const target=e.target.closest('#wc-menu-solo,#wc-card-solo');
-      if(!target)return;
-      e.preventDefault();e.stopImmediatePropagation();
-      const menu=document.getElementById('wc-main-menu');
-      const shell=document.querySelector('.app-shell');
-      if(menu)menu.classList.add('wc-menu-hide');
-      if(shell)shell.style.display='flex';
-      setTimeout(function(){
-        try{
-          if(typeof openCountrySelection==='function')openCountrySelection(true);
-          else throw new Error('Модуль выбора страны не загрузился');
-        }catch(err){
-          if(menu)menu.classList.remove('wc-menu-hide');
-          if(shell)shell.style.display='none';
-          alert('Не удалось запустить кампанию: '+err.message);
-        }
-      },120);
-    },true);
-  })();
-  </script>
 </body>
 </html>
