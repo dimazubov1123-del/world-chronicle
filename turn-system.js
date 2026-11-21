@@ -77,14 +77,14 @@
    const advisor=$('advisor-text');if(advisor)advisor.textContent=result.advisor||'Период рассчитан. Подробности находятся в хронике событий и карточках государств.';
    const drawer=$('pax-drawer-content');
    if(drawer&&$('pax-orders'))refreshOrderQueue();
+   const count=(result.countryReports||[]).length,requested=result.coverage?.requested||count;
+   if(count<requested)event('СИСТЕМА ИИ','Часть стран не получила доклады','ИИ вернул '+count+' докладов из '+requested+'. Проверьте ограничения модели или повторите расчёт в следующем периоде.');
    state.periodArchive=Array.isArray(state.periodArchive)?state.periodArchive:[];
    const periodEvents=(state.events||[]).filter(e=>Number(e.periodTurn)===Number(state.turn));
    state.periodArchive.unshift({turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель',eventIds:periodEvents.map(e=>e.id)});
    state.periodArchive=state.periodArchive.slice(0,100);
    state.currentPeriod=null;
    window.openNewsDrawer?.(state.turn);
-   const count=(result.countryReports||[]).length,requested=result.coverage?.requested||count;
-   if(count<requested)event('СИСТЕМА ИИ','Часть стран не получила доклады','ИИ вернул '+count+' докладов из '+requested+'. Проверьте ограничения модели или повторите расчёт в следующем периоде.');
   }catch(err){
    window.__replayingEvents=false;
    alert('ИИ не смог рассчитать период. Время не продвинуто, приказы сохранены.\n\n'+err.message);
