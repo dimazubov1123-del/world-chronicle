@@ -230,3 +230,17 @@ body{background:#101318;color:var(--text);font-family:Inter,system-ui,-apple-sys
 .wc-ai-report-block{padding:10px 0;border-top:1px solid rgba(184,199,216,.12)}
 .wc-ai-report-block b{display:block;color:#d8bd89;font-size:10px;letter-spacing:.11em;margin-bottom:5px}
 .wc-ai-report-block p,.wc-ai-country-report>p{margin:0;color:#d7e0e9;font-size:12px;line-height:1.7;white-space:pre-wrap}
+
+
+/* Expanded historical event dossier — HOI-style */
+.event-window{width:min(780px,100%);max-height:calc(100vh - 36px);display:flex;flex-direction:column}
+.event-art{height:155px;flex:none}
+.event-copy{overflow:auto;max-height:calc(100vh - 235px);padding:22px clamp(18px,4vw,42px) 27px}
+.event-copy h2{font-size:clamp(21px,3vw,28px);margin:10px 0 14px}
+.event-copy>p{max-width:650px;text-align:left;font-size:13px;line-height:1.85;color:#d0d8e1;white-space:pre-line}
+.event-details{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:18px 0 4px;text-align:left}
+.event-detail{padding:12px 13px;background:linear-gradient(145deg,#202f40,#172331);border:1px solid #465367;border-left:2px solid #b99a60;min-width:0}
+.event-detail b{display:block;margin-bottom:7px;color:#d8bd89;font:700 9px Manrope;letter-spacing:1.3px;text-transform:uppercase}
+.event-detail p{margin:0;color:#b9c5d2;font:400 11px/1.7 'DM Sans';white-space:pre-line}
+.event-continue{margin-top:20px}
+@media(max-width:620px){.event-window{max-height:calc(100vh - 20px)}.event-art{height:115px}.event-copy{max-height:calc(100vh - 170px);padding:17px 14px 20px}.event-details{grid-template-columns:1fr;gap:7px}.event-detail{padding:10px}.event-copy>p{font-size:11px}}
