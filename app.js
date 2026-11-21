@@ -677,7 +677,7 @@ function countryPicker(){openCountrySelection(false)}
  const session=()=>api()?.session?.();
  const request=(path,method='GET',body=null)=>{const ss=session();if(!ss)throw Error('Вы не подключены к сетевой комнате.');return api().api('/api/rooms/'+ss.code+path+(method==='GET'?'?token='+encodeURIComponent(ss.token):''),method,method==='GET'?null:{...body,token:ss.token})};
  const world=()=>window.WC_AI?.snapshot?.()||{};
- const addLocal=(title,body,type='advisor')=>{localAIResults.unshift({title,body,type,createdAt:new Date().toISOString()});localAIResults.splice(30)};
+ const addLocal=(title,body,type='advisor')=>{localAIResults.unshift({title,body,type,read:false,createdAt:new Date().toISOString()});localAIResults.splice(30)};
  function ensurePanel(){
   if(panel)return panel;
   panel=document.createElement('section');panel.id='wc-social-panel';panel.className='wc-social-panel';panel.innerHTML='<header><div><small>WORLD CHRONICLE · ДИПЛОМАТИЯ</small><h2 id="wc-social-title">Связь государств</h2><span id="wc-social-room"></span></div><button id="wc-social-close" aria-label="Закрыть">×</button></header><nav><button data-social-tab="chat">Общий чат</button><button data-social-tab="diplomacy">Дипломатия</button><button data-social-tab="advisor">Советник <i id="wc-social-unread"></i></button></nav><main id="wc-social-content"></main>';
@@ -693,7 +693,7 @@ function countryPicker(){openCountrySelection(false)}
  function close(){if(panel)panel.classList.remove('open');if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null}}
  async function refresh(){try{social=await request('/social');updateBadge();return social}catch(e){social=null;updateBadge();return null}}
  function updateBadge(){
-  const unread=(social?.notifications||[]).filter(n=>!n.read).length+(state.diplomaticInbox||[]).filter(n=>n.status==='pending').length+localAIResults.length;
+  const unread=(social?.notifications||[]).filter(n=>!n.read).length+(state.diplomaticInbox||[]).filter(n=>n.status==='pending').length+localAIResults.filter(n=>!n.read).length;
   const b=document.getElementById('wc-social-notification');if(b){b.textContent=unread?'УВЕДОМЛЕНИЯ · '+unread:'СВЯЗЬ';b.classList.toggle('has-unread',unread>0)}
   const u=panel?.querySelector('#wc-social-unread');if(u)u.textContent=unread?'· '+unread:'';
  }
@@ -766,6 +766,7 @@ function countryPicker(){openCountrySelection(false)}
   const localInbox=(state.diplomaticInbox||[]).slice().reverse().map(x=>({type:'ai_proposal',title:x.title,body:x.fromCountryId+': '+x.message,createdAt:x.createdAt}));
   const notices=[...localAIResults,...localInbox,...inbox].slice(0,30);
   el.innerHTML='<div class="wc-advisor-intro"><b>Кабинет государственного советника</b><p>Задавайте вопросы о внутренней политике, экономике, обороне, международных отношениях и поступивших предложениях. Советник отделяет факты от оценок.</p></div><div class="wc-social-notices">'+(notices.length?notices.map(n=>'<article><small>'+esc(n.type||'УВЕДОМЛЕНИЕ')+' · '+esc(n.createdAt?new Date(n.createdAt).toLocaleString():'сейчас')+'</small><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></article>').join(''):'<p class="wc-social-empty">Новых сообщений и дипломатических уведомлений нет.</p>')+'</div><form id="wc-advisor-form" class="wc-social-compose"><textarea id="wc-advisor-question" maxlength="1600" placeholder="Например: стоит ли принимать предложение США о военном союзе? Какие риски для нашей страны?"></textarea><button>Спросить советника</button></form><div id="wc-advisor-answer" class="wc-social-ai-result"></div>';
+  localAIResults.forEach(n=>n.read=true);updateBadge();
   el.querySelector('#wc-advisor-form').onsubmit=async e=>{e.preventDefault();const q=el.querySelector('#wc-advisor-question').value.trim();if(!q)return;const btn=e.submitter;btn.disabled=true;btn.textContent='Советник анализирует…';try{const r=await api().api('/api/ai/advisor-chat','POST',{question:q,history:localAIHistory.slice(-10),world:world(),inbox:notices.slice(0,8)});localAIHistory.push({from:'Вы',text:q},{from:'Советник',text:r.answer||'Нет ответа'});el.querySelector('#wc-advisor-answer').innerHTML='<b>Ответ советника</b><p>'+esc(r.answer||'Ответ не получен.')+'</p>'+(r.notification?'<small>'+esc(r.notification)+'</small>':'');el.querySelector('#wc-advisor-question').value='';if(r.notification)addLocal('Советник обращает внимание',r.notification)}catch(err){el.querySelector('#wc-advisor-answer').textContent='Ошибка: '+err.message}finally{btn.disabled=false;btn.textContent='Спросить советника'}};
   if(session())request('/social/read','POST',{}).then(refresh).catch(()=>{});
  }
