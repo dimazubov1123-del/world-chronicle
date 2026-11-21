@@ -278,8 +278,8 @@ function loadRegions(){
     const successful=extra.filter(x=>x.features.length),aliases=new Set(successful.flatMap(x=>[x.admin,x.label,x.iso]));
     regionData.features=(regionData.features||[]).filter(f=>{const p=f.properties||{},keys=[p.admin,p.ADMIN,p.geonunit,p.shapeGroup,p.iso_a3,p.ISO_A3].map(x=>String(x||''));return !keys.some(k=>aliases.has(k))}).concat(...successful.map(x=>x.features));
     window.__wcRegionData=regionData;indexRegions();ensureCountryRegionCoverage();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
-    const missing=extra.filter(x=>!x.features.length).map(x=>x.label),counts=successful.map(x=>x.label+': '+x.features.length);
-    $('map-hint').textContent='Административные единицы загружены: '+successful.length+'/'+extra.length+' стран. '+(missing.length?'Нет детальных данных: '+missing.join(', '):'Все запрошенные наборы получены.')+' VAT/Ватикан использует контур государства.';
+    const missing=extra.filter(x=>!x.features.length).map(x=>x.label),microDetails=successful.filter(x=>microstates.has(x.iso)).map(x=>x.label+': '+x.features.length).join(' · ');
+    $('map-hint').textContent='Административные единицы загружены: '+successful.length+'/'+extra.length+' стран. Микрогосударства: '+(microDetails||'детализация не получена')+'. '+(missing.length?'Нет детальных данных: '+missing.join(', '):'Все запрошенные наборы получены.')+' Для стран без набора оставлен контур государства.';
 
    }).catch(()=>{$('map-hint').textContent='Основные регионы загружены; дополнительная детализация Европы недоступна.'});
   })  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
