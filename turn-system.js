@@ -43,17 +43,13 @@
   const endDate=end.getDate()+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][end.getMonth()]+' '+end.getFullYear();
   const base=window.WC_AI.snapshot();
   let commandOperations=[],commandClarification='',commandSummary='';
+  const commandContext=orders.length?window.WC_WAR?.commandSnapshot?.():null;
   setBusy(true);
   try{
-   let resolvedOrder=order;
-   if(orders.length&&window.WC_WAR?.commandSnapshot&&window.WC_WAR?.executeOrders){
-    const parsed=await window.WC_AI.request('command',{order,world:window.WC_WAR.commandSnapshot()});
-    commandOperations=Array.isArray(parsed.operations)?parsed.operations:[];
-    commandClarification=String(parsed.clarification||'').trim();
-    commandSummary=String(parsed.summary||'').trim();
-    resolvedOrder=order+'\n\nПЛАН РАЗОБРАННЫХ ПРИКАЗОВ: '+JSON.stringify(commandOperations)+'\nПояснение штаба: '+commandSummary+(commandClarification?'\nТребует уточнения: '+commandClarification:'');
-   }
-   const result=await window.WC_AI.request('world-turn',{...base,date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:resolvedOrder});
+   const result=await window.WC_AI.request('world-turn',{...base,commandContext,date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
+   commandOperations=Array.isArray(result.commandOperations)?result.commandOperations:[];
+   commandClarification=String(result.commandClarification||'').trim();
+   commandSummary=String(result.commandSummary||'').trim();
    moveDate(weeks);
    state.currentPeriod={turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель'};
    state.aiWorldState=state.aiWorldState||{countries:{},lastSummary:''};
