@@ -46,6 +46,7 @@
   try{
    const result=await window.WC_AI.request('world-turn',{...base,date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
    moveDate(weeks);
+   state.currentPeriod={turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель'};
    state.aiWorldState=state.aiWorldState||{countries:{},lastSummary:''};
    state.aiWorldState.countries=state.aiWorldState.countries||{};
    (result.countryReports||[]).forEach(r=>{
@@ -76,7 +77,12 @@
    const advisor=$('advisor-text');if(advisor)advisor.textContent=result.advisor||'Период рассчитан. Подробности находятся в хронике событий и карточках государств.';
    const drawer=$('pax-drawer-content');
    if(drawer&&$('pax-orders'))refreshOrderQueue();
-   const last=state.events?.[0];if(last)showChronicleEvent(last);
+   state.periodArchive=Array.isArray(state.periodArchive)?state.periodArchive:[];
+   const periodEvents=(state.events||[]).filter(e=>Number(e.periodTurn)===Number(state.turn));
+   state.periodArchive.unshift({turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель',eventIds:periodEvents.map(e=>e.id)});
+   state.periodArchive=state.periodArchive.slice(0,100);
+   state.currentPeriod=null;
+   window.openNewsDrawer?.(state.turn);
    const count=(result.countryReports||[]).length,requested=result.coverage?.requested||count;
    if(count<requested)event('СИСТЕМА ИИ','Часть стран не получила доклады','ИИ вернул '+count+' докладов из '+requested+'. Проверьте ограничения модели или повторите расчёт в следующем периоде.');
   }catch(err){
