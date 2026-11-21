@@ -228,7 +228,7 @@ const socialPlayer=(room,token,res)=>{const p=findPlayer(room,token);if(!p)res.s
 app.get('/api/rooms/:code/social',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const p=socialPlayer(room,req.query.token,res);if(!p)return;
  const messages=(room.diplomacyMessages||[]).filter(m=>m.fromCountryId===p.countryId||m.toCountryId===p.countryId).slice(-100);
- const proposals=(room.proposals||[]).filter(x=>x.fromCountryId===p.countryId||x.toCountryId===p.countryId).slice(-60);
+ const proposals=(room.proposals||[]).filter(x=>x.fromCountryId===p.countryId||x.toCountryId===p.countryId||x.status==='accepted').slice(-80);
  res.json({chat:(room.chat||[]).slice(-100),messages,proposals,notifications:(room.notifications?.[p.id]||[]).slice(-60),players:room.players.map(x=>({id:x.id,name:x.name,countryId:x.countryId,online:Date.now()-(x.lastSeen||0)<12000}))});
 });
 app.post('/api/rooms/:code/chat',(req,res)=>{
@@ -288,6 +288,24 @@ app.post('/api/rooms/:code/social/ai-action',(req,res)=>{
  const body=actor+' предприняло военное действие в отношении вашего государства. Проверьте хронику и оборонную обстановку.';
  notifyPlayer(room,recipient.id,{type:'ai_action',title,body,fromCountryId,actionType:type,delta:Number(a.delta)||0});
  room.revision++;res.status(201).json({ok:true});
+});
+
+app.post('/api/rooms/:code/social/ai-message',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ const toCountryId=clean(b.toCountryId,90).trim(),message=clean(b.message,1600).trim(),reply=clean(b.reply,1800).trim(),isProposal=!!b.isProposal;
+ if(!toCountryId||!message||!reply)return res.status(400).json({error:'Не хватает текста дипломатического обмена.'});
+ const createdAt=new Date().toISOString(),base={fromPlayerId:p.id,fromPlayerName:p.name,fromCountryId:p.countryId,toCountryId,createdAt,kind:'ai'};
+ room.diplomacyMessages=room.diplomacyMessages||[];
+ room.diplomacyMessages.push({...base,id:socialId(),toPlayerId:null,message,kind:'ai_outgoing'},{...base,id:socialId(),fromPlayerId:null,fromPlayerName:'Правительство '+clean(b.countryName||toCountryId,120),fromCountryId:toCountryId,toPlayerId:p.id,toCountryId:p.countryId,message:reply,kind:'ai_reply',createdAt:new Date().toISOString()});
+ room.diplomacyMessages=room.diplomacyMessages.slice(-300);
+ let proposal=null;
+ if(isProposal){
+  const decision=['accept','reject','negotiate'].includes(b.decision)?b.decision:'none',status=decision==='accept'?'accepted':decision==='reject'?'rejected':decision==='negotiate'?'counteroffer':'pending';
+  proposal={id:socialId(),fromPlayerId:p.id,fromPlayerName:p.name,fromCountryId:p.countryId,toPlayerId:null,toCountryId,type:clean(b.proposalType,80)||'diplomatic',title:clean(b.title,140)||'Дипломатическое предложение',message,status,response:reply,createdAt,updatedAt:new Date().toISOString(),aiCounterparty:true};
+  room.proposals=room.proposals||[];room.proposals.push(proposal);room.proposals=room.proposals.slice(-150);
+ }
+ notifyPlayer(room,p.id,{type:'ai_response',title:isProposal?'Ответ ИИ на дипломатическое предложение':'Ответ иностранного правительства',body:clean(b.advisorMessage||reply,600),fromCountryId:toCountryId,proposalId:proposal?.id,status:proposal?.status});
+ room.revision++;res.status(201).json({ok:true,proposal});
 });
 app.post('/api/rooms/:code/social/apply',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
