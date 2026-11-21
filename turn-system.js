@@ -167,13 +167,16 @@
  const next=$('next-turn');if(next)next.innerHTML='ПРОДОЛЖИТЬ ВРЕМЯ <span>→</span>';
  const period=$('pax-jump-size');if(period){period.title='Сколько времени должен просчитать ИИ';period.setAttribute('aria-label','Продолжительность периода')}
  const pause=$('pause-button');if(pause)pause.style.display='none';
- const netSession=window.WC_MULTIPLAYER?.session?.();
- if(netSession){
+ let networkPoll=null;
+ function initMultiplayer(){
+  if(!window.WC_MULTIPLAYER?.session?.())return;
   document.body.classList.add('wc-multiplayer-active');
   if($('wc-network-status'))$('wc-network-status').hidden=false;
   if($('wc-network-ready'))$('wc-network-ready').hidden=false;
-  syncMultiplayer();setInterval(syncMultiplayer,2500);
+  syncMultiplayer();if(!networkPoll)networkPoll=setInterval(syncMultiplayer,2500);
  }
+ window.WC_TURN_MULTIPLAYER_INIT=initMultiplayer;
+ if(window.WC_MULTIPLAYER?.session?.())initMultiplayer();
  document.querySelectorAll('.speed-button,.speed-label').forEach(x=>x.style.display='none');
  document.querySelectorAll('.main-nav .nav-item[data-action="politics"],.main-nav .nav-item[data-action="elections"],.main-nav .nav-item[data-action="economy"],.main-nav .nav-item[data-action="military"],.action-card,.pax-float-button[data-pax-panel="projects"]').forEach(x=>x.style.display='none');
  const help=$('help-btn');if(help)help.onclick=()=>modal('Как проходит игровой период','<p>1. Откройте «Действия» и напишите свободный приказ обычным текстом.</p><p>2. Нажмите «Добавить приказ в ход». Можно подготовить несколько распоряжений.</p><p>3. Выберите длительность: неделя, месяц, три месяца, полгода или год.</p><p>4. Нажмите «Продолжить время». ИИ обработает приказы, действия других государств и публичную хронику. Если запрос завершится ошибкой, дата не изменится, а приказы останутся в очереди.</p>');
