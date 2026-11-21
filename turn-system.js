@@ -106,10 +106,26 @@
  document.querySelectorAll('.speed-button,.speed-label').forEach(x=>x.style.display='none');
  document.querySelectorAll('.main-nav .nav-item[data-action="politics"],.main-nav .nav-item[data-action="elections"],.main-nav .nav-item[data-action="economy"],.main-nav .nav-item[data-action="military"],.action-card,.pax-float-button[data-pax-panel="projects"]').forEach(x=>x.style.display='none');
  const help=$('help-btn');if(help)help.onclick=()=>modal('Как проходит игровой период','<p>1. Откройте «Действия» и напишите свободный приказ обычным текстом.</p><p>2. Нажмите «Добавить приказ в ход». Можно подготовить несколько распоряжений.</p><p>3. Выберите длительность: неделя, месяц, три месяца, полгода или год.</p><p>4. Нажмите «Продолжить время». ИИ обработает приказы, действия других государств и публичную хронику. Если запрос завершится ошибкой, дата не изменится, а приказы останутся в очереди.</p>');
- // Update the dynamic order panel whenever it is opened.
+ // Build the queue panel once when the actions drawer is opened.
  const content=$('pax-drawer-content');
- if(content)new MutationObserver(()=>{
-  const send=$('pax-send');
-  if(send){if(send.textContent!=='Добавить приказ в ход')send.textContent='Добавить приказ в ход';const old=$('pax-orders');if(!old){const box=document.createElement('div');box.id='pax-orders';box.style.marginTop='12px';send.parentElement?.after(box)}refreshOrderQueue()}
- }).observe(content,{childList:true,subtree:true});
+ if(content){
+  const ensureQueue=()=>{
+   const send=$('pax-send');
+   if(!send||!content.contains(send))return;
+   let box=$('pax-orders');
+   if(!box){
+    box=document.createElement('div');
+    box.id='pax-orders';
+    box.style.marginTop='12px';
+    send.parentElement?.after(box);
+   }
+   if(send.textContent!=='Добавить приказ в ход')send.textContent='Добавить приказ в ход';
+   refreshOrderQueue();
+  };
+  const observer=new MutationObserver(()=>{
+   if(!$('pax-orders'))ensureQueue();
+  });
+  observer.observe(content,{childList:true,subtree:true});
+  ensureQueue();
+ }
 })();
