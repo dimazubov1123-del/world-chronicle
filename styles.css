@@ -31,3 +31,57 @@
 
 /* Election and parliamentary simulation */
 .party-list{display:grid;gap:7px}.party-row{display:flex;align-items:center;gap:9px;padding:9px;background:#111d2a;border:1px solid #293a4e;border-radius:5px}.party-color{display:inline-block;flex:none;width:9px;height:9px;border-radius:2px}.party-main{flex:1;min-width:0}.party-main strong{display:block;font:700 10px Manrope;color:#e5ebf2}.party-main small{display:block;color:#8292a6;font-size:8px;margin-top:3px}.party-meter{height:4px;background:#263548;border-radius:5px;margin-top:7px;overflow:hidden}.party-meter i{display:block;height:100%;border-radius:5px}.party-percent{font:700 11px Manrope;color:#e8d3a8;text-align:right;min-width:48px}.party-percent small{display:block;font:400 8px 'DM Sans';color:#91a1b5;margin-top:3px}.election-label{display:block;color:#93a3b7;font-size:9px;margin:8px 0 4px}.election-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.election-actions .game-action{min-height:62px}.election-note{font-size:9px!important;color:#8e9db0!important;margin:8px 0;line-height:1.5}.seat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border-bottom:1px solid #26364a;color:#cbd5e1;font-size:9px}.seat-row span{display:flex;align-items:center;gap:8px}.seat-row i{display:inline-block;width:8px;height:8px;border-radius:2px}.seat-row b{font:700 11px Manrope;color:#e6d3a7}.coalition-option{display:flex;align-items:center;gap:8px;padding:8px 9px;margin:5px 0;background:#172536;border:1px solid #2b3e53;border-radius:4px;color:#dce4ed;font-size:9px}.coalition-option input{accent-color:#c5a15c}.coalition-option b{margin-left:auto;color:#c8b07d}.government-card{padding:12px;background:#172b2b;border:1px solid #426b5b;border-radius:5px}.government-card strong,.government-card span{display:block}.government-card strong{font:700 11px Manrope;color:#b4d7c4}.government-card span{font-size:9px;color:#91b4a2;margin-top:5px}.secondary-submit{background:#24364a!important;border-color:#3b5067!important}@media(max-width:520px){.election-actions{grid-template-columns:1fr}}
+
+
+/* World Chronicle — grand-strategy interface refresh */
+:root{--bg:#080e17;--panel:#0e1723;--panel2:#142131;--line:#29384a;--gold:#d0ad68;--text:#edf1f6}
+body{background:#080e17}
+.app-shell{background:radial-gradient(ellipse at 50% 45%,#17283b 0,#0a111c 64%)}
+.topbar{height:72px;background:linear-gradient(180deg,#111d2b,#0c1520);border-bottom:1px solid #3b4655;box-shadow:0 5px 22px #0004}
+.brand-mark{border-radius:3px;border:1px solid #a18450;box-shadow:inset 0 0 0 2px #172333,0 0 18px #c8a96b18}
+.workspace{grid-template-columns:285px minmax(350px,1fr) 315px}
+.panel{background:linear-gradient(180deg,#111c29f5,#0c1521f7)}
+.left-panel,.right-panel{padding-top:24px}
+.panel-heading h2{font-size:20px;letter-spacing:-.4px}
+.section-rule{background:linear-gradient(90deg,#c5a36355,#28384b 65%,transparent)}
+.country-card{background:linear-gradient(110deg,#1b2b3d,#142131);border-color:#435269;border-radius:3px;box-shadow:inset 3px 0 #c4a064}
+.stat-box{border-radius:3px;background:linear-gradient(145deg,#172638,#101b28);border-color:#2c3d51}
+.nav-item{border-radius:3px;padding:12px 10px;font-size:11px;transition:background .15s,color .15s}
+.nav-item:hover{background:#223348}.nav-item.active{background:linear-gradient(90deg,#493c25,#1b2a3b 78%);box-shadow:inset 3px 0 var(--gold);color:#fff}
+.map-stage{background:radial-gradient(ellipse at center,#1a2c3e,#0c1723 75%)}
+.map-stage #map,.leaflet-container{background:transparent!important}
+.map-toolbar{background:linear-gradient(180deg,#172536,#111c29);height:74px}
+.tool-button{border-radius:3px}
+.map-legend{background:#0c1623ed;border-color:#465367;border-radius:3px;box-shadow:0 8px 24px #0005}
+.news-item{padding:15px 0;border-bottom-color:#2b3949}
+.news-item h3{font-size:11px}.news-tag{letter-spacing:1.15px}
+.action-card{border-radius:3px;background:linear-gradient(110deg,#1b2a3b,#142131);border-color:#34465b}
+.action-card:hover{border-color:#c4a064}
+.advisor-card{border-radius:3px;background:linear-gradient(120deg,#1d3040,#152332);border-color:#405167}
+.bottom-bar{height:57px;background:linear-gradient(180deg,#111c29,#0a121c);border-top-color:#3a4656}
+.next-button{background:linear-gradient(180deg,#d8b978,#ad8a4e);border-color:#d8b978;box-shadow:0 2px 10px #0005}
+.modal{border-radius:4px;border:1px solid #596477;background:linear-gradient(145deg,#182638,#0e1825);box-shadow:0 28px 90px #000c}
+.modal h2{font-size:23px}
+.game-panel-content{max-height:min(68vh,650px)}
+/* HOI-style major event presentation */
+.event-overlay{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:22px;background:radial-gradient(ellipse at center,#101a28d9,#03070deF);backdrop-filter:blur(5px)}
+.event-overlay.hidden{display:none}
+.event-window{width:min(660px,100%);overflow:hidden;background:linear-gradient(145deg,#182638,#0d1723);border:1px solid #8e7953;box-shadow:0 28px 100px #000d,0 0 0 5px #101a28,0 0 0 6px #5e5039}
+.event-topline{height:37px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 17px;background:#0b131e;border-bottom:1px solid #554a36;color:#c7aa70;font:700 9px Manrope;letter-spacing:1.4px}
+.event-topline span:last-child{color:#8291a3;font:500 9px 'DM Sans';letter-spacing:.5px}
+.event-art{height:190px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 55%,#526176 0,#26384b 42%,#111c2a 100%)}
+.event-art:before,.event-art:after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 18%,#d2b77b12 18.2%,transparent 18.8%,transparent 72%,#d2b77b13 72.2%,transparent 73%)}
+.event-art:after{background:linear-gradient(0deg,#0d1723 0,transparent 65%),repeating-linear-gradient(90deg,transparent 0 58px,#d7c18a0b 59px 60px)}
+.event-art-grid{position:absolute;inset:0;opacity:.22;background:repeating-linear-gradient(0deg,transparent 0 34px,#c9b17a33 35px 36px)}
+.event-emblem{position:relative;z-index:1;width:104px;height:104px;display:grid;place-items:center;border:2px solid #d2b77b;border-radius:50%;box-shadow:0 0 0 7px #d2b77b20,0 8px 35px #0008;color:#ead5a8;font:400 55px Georgia;background:radial-gradient(circle,#394b5e,#152333)}
+.event-art-caption{position:absolute;z-index:2;bottom:13px;left:0;right:0;text-align:center;color:#e1d0ad;font:700 9px Manrope;letter-spacing:3px;text-shadow:0 2px 5px #000}
+.event-copy{padding:23px 34px 27px;text-align:center}
+.event-copy .eyebrow{letter-spacing:2.5px}
+.event-copy h2{font:800 23px/1.3 Manrope;color:#f0e6d2;margin:10px 0 12px}
+.event-copy p{max-width:540px;margin:0 auto;color:#b5c0cd;font:400 12px/1.75 'DM Sans'}
+.event-continue{margin-top:22px;min-width:190px;padding:12px 20px;border:1px solid #d0ad68;background:linear-gradient(180deg,#d9bd83,#a98950);color:#101722;font:800 10px Manrope;letter-spacing:1.2px;cursor:pointer;box-shadow:0 4px 14px #0006}
+.event-continue:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.event-continue span{margin-left:15px;font-size:15px}
+body.event-open{overflow:hidden}
+@media(max-width:1100px){.workspace{grid-template-columns:245px minmax(300px,1fr)}}
+@media(max-width:720px){.workspace{display:flex;flex-direction:column}.event-overlay{padding:12px}.event-art{height:145px}.event-copy{padding:20px 17px 22px}.event-copy h2{font-size:19px}.event-topline{padding:0 10px;font-size:8px}.event-topline span:last-child{font-size:8px}}
