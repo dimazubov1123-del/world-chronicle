@@ -56,12 +56,17 @@
   const end=new Date(state.year,state.month,state.day);end.setDate(end.getDate()+weeks*7);
   const endDate=end.getDate()+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][end.getMonth()]+' '+end.getFullYear();
   const base=window.WC_AI.snapshot();
+  let diplomaticContext=null;
+  if(net){try{const sd=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/social?token='+encodeURIComponent(net.token));diplomaticContext={messages:(sd.messages||[]).slice(-20),proposals:(sd.proposals||[]).slice(-20)}}catch(socialError){console.warn('Не удалось загрузить дипломатический контекст:',socialError.message)}}
+
   let commandOperations=[],commandClarification='',commandSummary='';
   const rollbackState=net?JSON.parse(JSON.stringify({...state,geoLayer:null})):null;
   const commandContext=orders.length?window.WC_WAR?.commandSnapshot?.():null;
   setBusy(true);
   try{
-   const result=await window.WC_AI.request('world-turn',{...base,commandContext,multiplayerOrders:multiplayerOrders.filter(p=>p.order&&p.countryId!==net?.countryId),date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
+   const result=await window.WC_AI.request('world-turn',{...base,commandContext,diplomaticContext,multiplayerOrders:multiplayerOrders.filter(p=>p.order&&p.countryId!==net?.countryId),date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
+   if(net){try{const applied=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/social/apply','POST',{token:net.token});for(const proposal of (applied.proposals||[])){const pair=[proposal.fromCountryId,proposal.toCountryId].sort().join('|');if(proposal.type==='embassy'){const other=proposal.fromCountryId===state.selected?proposal.toCountryId:proposal.fromCountryId;if(proposal.fromCountryId===state.selected||proposal.toCountryId===state.selected)state.relations[other]=Math.max(-100,Math.min(100,Number(state.relations[other]||0)+5));event('ДИПЛОМАТИЯ','Дипломатическая миссия согласована',proposal.fromCountryId+' и '+proposal.toCountryId+' подтвердили обмен дипломатическими миссиями.')}else if(['treaty','nonaggression','alliance','economic','ceasefire'].includes(proposal.type)){state.treaties=Array.isArray(state.treaties)?state.treaties:[];if(!state.treaties.includes(pair))state.treaties.push(pair);if(proposal.type==='ceasefire')state.wars=(state.wars||[]).filter(x=>x!==proposal.fromCountryId+'|'+proposal.toCountryId&&x!==proposal.toCountryId+'|'+proposal.fromCountryId);event('ДИПЛОМАТИЯ','Соглашение вступило в силу',proposal.title+': '+proposal.fromCountryId+' — '+proposal.toCountryId+'. Условия: '+proposal.message+(proposal.response?' Ответная позиция: '+proposal.response:''))}}}catch(applyError){console.warn('Не удалось применить принятые дипломатические соглашения:',applyError.message)}}
+
    commandOperations=Array.isArray(result.commandOperations)?result.commandOperations:[];
    commandClarification=String(result.commandClarification||'').trim();
    commandSummary=String(result.commandSummary||'').trim();
