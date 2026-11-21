@@ -376,6 +376,7 @@ load();ensureElection();if(state.regionsVisible){$('regions-toggle').classList.a
  document.getElementById('pax-events-btn').onclick=()=>{title.textContent='Хроника событий';drawer.classList.remove('hidden');content.innerHTML=(state.events||[]).map(e=>'<div class="pax-log-item"><b>'+esc(e.date+' · '+e.category)+'</b><br>'+esc(e.title)+'<br>'+esc(e.description)+'</div>').join('')||'<p>Пока нет событий.</p>'};
  function sync(){const c=current();document.getElementById('pax-session-country').textContent=c.name;document.getElementById('pax-date-pill').textContent=dateText();document.getElementById('pax-own-flag').textContent=c.flag;document.getElementById('pax-own-name').textContent=c.name;document.getElementById('pax-events-count').textContent=(state.events||[]).length}
  new MutationObserver(sync).observe(document.getElementById('date-label'),{childList:true,subtree:true});
+ new MutationObserver(sync).observe(document.getElementById('country-name'),{childList:true,subtree:true});
  new MutationObserver(sync).observe(document.getElementById('news-list'),{childList:true});
  document.getElementById('pax-jump-btn').onclick=()=>{const n=Number(document.getElementById('pax-jump-size').value)||1;window.__replayingEvents=true;for(let i=0;i<n;i++)advanceTurn();window.__replayingEvents=false;sync();const last=state.events[0];if(last)showChronicleEvent(last)};
  sync();
