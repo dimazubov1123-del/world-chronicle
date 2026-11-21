@@ -61,6 +61,7 @@ function inspectCountry(id,feature,displayName,displayFlag){
  if(f&&map){const b=item?.bounds||(L.geoJSON(f).getBounds());if(b?.isValid())map.fitBounds(b,{padding:[45,45],maxZoom:5})}
  $('map-hint').textContent='Открыта карточка государства: '+info.name;
 }
+function escCountryHtml(value){return String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
 function openCountryProfile(id,feature,info){
  const drawer=document.getElementById('pax-drawer'),content=document.getElementById('pax-drawer-content'),title=document.getElementById('pax-drawer-title');
  if(!drawer||!content)return;
@@ -73,13 +74,13 @@ function openCountryProfile(id,feature,info){
  const isPlayer=id===state.selected;
  title.textContent='Государство · '+name;
  drawer.classList.add('country-open');drawer.classList.remove('hidden');
- content.innerHTML='<div class="wc-country-hero"><span class="wc-country-flag">'+flag+'</span><div class="wc-country-heading"><span class="wc-country-kicker">'+(isPlayer?'УПРАВЛЯЕМОЕ ГОСУДАРСТВО':'ГОСУДАРСТВО МИРА')+'</span><h2>'+esc(name)+'</h2><small>'+esc(p.FORMAL_EN||p.TYPE||'Суверенное государство')+'</small></div></div>'+
- '<div class="wc-country-facts"><div><small>СТОЛИЦА</small><b>'+esc(capital)+'</b></div><div><small>НАСЕЛЕНИЕ</small><b>'+esc(popText)+'</b></div><div><small>ЭКОНОМИКА</small><b>'+esc(gdpText)+'</b></div><div><small>РЕГИОН</small><b>'+esc(region||'Нет данных')+'</b></div></div>'+
+ content.innerHTML='<div class="wc-country-hero"><span class="wc-country-flag">'+flag+'</span><div class="wc-country-heading"><span class="wc-country-kicker">'+(isPlayer?'УПРАВЛЯЕМОЕ ГОСУДАРСТВО':'ГОСУДАРСТВО МИРА')+'</span><h2>'+escCountryHtml(name)+'</h2><small>'+escCountryHtml(p.FORMAL_EN||p.TYPE||'Суверенное государство')+'</small></div></div>'+
+ '<div class="wc-country-facts"><div><small>СТОЛИЦА</small><b>'+escCountryHtml(capital)+'</b></div><div><small>НАСЕЛЕНИЕ</small><b>'+escCountryHtml(popText)+'</b></div><div><small>ЭКОНОМИКА</small><b>'+escCountryHtml(gdpText)+'</b></div><div><small>РЕГИОН</small><b>'+escCountryHtml(region||'Нет данных')+'</b></div></div>'+
  '<div class="wc-country-relations"><span><small>ОТНОШЕНИЯ С ВАШЕЙ СТРАНОЙ</small><b>'+relationLabel+'</b></span><strong>'+ (relation>0?'+':'')+relation+'</strong></div>'+
  '<div class="wc-country-actions">'+(isPlayer?'<button class="pax-secondary" id="wc-country-own">Это ваша страна</button>':'<button class="pax-primary" id="wc-country-diplomacy">✦ Дипломатические действия</button><button class="pax-secondary" id="wc-country-chat">☏ Открыть переговоры</button>')+'</div>'+
  '<p class="wc-country-note">Показатели, которых нет в данных сценария, не подменяются вымышленными значениями. Отношения рассчитываются относительно выбранной вами страны.</p>';
  const dip=document.getElementById('wc-country-diplomacy');if(dip)dip.onclick=()=>{drawer.classList.remove('country-open');diplomacyTalk(id)};
- const chat=document.getElementById('wc-country-chat');if(chat)chat.onclick=()=>{target=id;drawer.classList.remove('country-open');open('chat')};
+ const chat=document.getElementById('wc-country-chat');if(chat)chat.onclick=()=>{drawer.classList.remove('country-open');window.__paxOpenChatWithTarget?.(id)};
 }
 function styleFeature(f){
  const name=f.properties.ADMIN||f.properties.admin||f.properties.name||'';
@@ -385,7 +386,7 @@ load();ensureElection();if(state.regionsVisible){$('regions-toggle').classList.a
  let target=null;const chats={};
  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const current=()=>countries[state.selected]||{name:state.selected,capital:'Не определена',flag:'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};
- function open(kind){drawer.classList.remove('hidden');document.querySelectorAll('.pax-float-button').forEach(b=>b.classList.toggle('active',b.dataset.paxPanel===kind));
+ function open(kind){drawer.classList.remove('country-open');drawer.classList.remove('hidden');document.querySelectorAll('.pax-float-button').forEach(b=>b.classList.toggle('active',b.dataset.paxPanel===kind));
  if(kind==='actions'){title.textContent='Действия государства';content.innerHTML='<p style="font-size:11px;color:#aab2bb">Сформулируйте распоряжение правительства. Приказ попадёт в очередь и будет отражён в хронике.</p><textarea id="pax-order" placeholder="Например: начать переговоры с Францией о торговом соглашении..."></textarea><button class="pax-secondary" id="pax-ideas">Предложить идею</button> <button class="pax-primary" id="pax-send">Отправить приказ ↗</button><div id="pax-orders" style="margin-top:12px"></div>';
  document.getElementById('pax-ideas').onclick=()=>document.getElementById('pax-order').value='Подготовить дипломатическую инициативу, оценить торговые возможности и представить доклад о состоянии вооружённых сил.';
  document.getElementById('pax-send').onclick=()=>{const v=document.getElementById('pax-order').value.trim();if(!v)return alert('Напишите приказ.');addInitiative(v);event('ПРИКАЗ','Зарегистрирован приказ правительства',v);document.getElementById('pax-order').value='';renderOrders();save()};
@@ -399,6 +400,7 @@ load();ensureElection();if(state.regionsVisible){$('regions-toggle').classList.a
  function renderOrders(){const el=document.getElementById('pax-orders');if(!el)return;const items=state.initiatives||[];el.innerHTML='<div class="pax-initiative-head"><b>Инициативы · '+items.length+'</b><small>Выполнение зависит от времени и ресурсов</small></div>'+(items.length?items.map(x=>'<div class="pax-initiative"><div class="pax-initiative-top"><b>'+esc(x.text)+'</b><span class="pax-status '+(x.status==='Завершено'?'done':x.status==='Сдерживается'?'hold':x.status==='Заблокировано'?'blocked':'active')+'">'+esc(x.status)+'</span></div><div class="pax-progress"><i style="width:'+Math.max(0,Math.min(100,x.progress||0))+'%"></i></div><small>'+esc(x.category)+' · '+(x.progress||0)+'% · '+(x.status==='Завершено'?'результат достигнут':Math.max(0,x.weeksLeft||0)+' нед. до завершения')+'</small></div>').join(''):'<p style="font-size:10px;color:#89939e">Пока нет инициатив. Отправьте первый приказ.</p>')}
  function renderChat(){const el=document.getElementById('pax-chat-log');if(el)el.innerHTML=(chats[target]||[]).map(x=>'<div class="pax-chat-line '+(x.from==='Вы'?'me':'')+'"><b>'+esc(x.from)+':</b> '+esc(x.text)+'</div>').join('')||'<p style="font-size:10px;color:#89939e">Начните дипломатический разговор.</p>'}
  function countryCard(){inspectCountry(state.selected)}
+ window.__paxOpenChatWithTarget=(id)=>{target=id;open('chat')};
  document.querySelectorAll('.pax-float-button').forEach(b=>b.onclick=()=>open(b.dataset.paxPanel));
  document.getElementById('pax-drawer-close').onclick=()=>drawer.classList.add('hidden');
  document.getElementById('pax-own-country').onclick=countryCard;
