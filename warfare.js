@@ -126,7 +126,6 @@
   document.getElementById('wc-war-room-btn')?.addEventListener('click',openWarRoom);
   document.getElementById('wc-create-unit-btn')?.addEventListener('click',openWarRoom);
   document.getElementById('pax-own-country')?.addEventListener('click',()=>syncUnits());
-  map.on('moveend zoomend',()=>{if(regionLayer)regionLayer.setStyle(styleRegion)});
   const oldUpdate=window.updateUI; // refresh army counters in the operational panel without changing the main HUD
   document.querySelectorAll('.pax-float-button').forEach(b=>{if(b.dataset.paxPanel==='projects'){b.addEventListener('click',()=>{setTimeout(()=>{const content=document.getElementById('pax-drawer-content');if(content&&!content.querySelector('#wc-open-war-room')){const box=document.createElement('div');box.className='wc-war-shortcut';box.innerHTML='<button class="wc-primary" id="wc-open-war-room">⚔ Военное командование</button>';content.prepend(box);document.getElementById('wc-open-war-room').onclick=openWarRoom}},0)})}});
   window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId};
