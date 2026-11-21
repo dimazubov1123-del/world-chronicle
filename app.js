@@ -735,18 +735,19 @@ function countryPicker(){openCountrySelection(false)}
   el.querySelector('#wc-dip-send-proposal').onclick=async()=>{const message=el.querySelector('#wc-dip-proposal').value.trim(),type=el.querySelector('#wc-dip-type').value,to=target.value,title=el.querySelector('#wc-dip-title').value.trim();if(!message)return alert('Опишите условия инициативы.');if(to==='__ai__'){await aiMessage(ai.value,message,true,type,title);return}try{await request('/proposals','POST',{toCountryId:to,type,title,message});await refresh();render()}catch(err){alert(err.message)}};
  }
  async function aiMessage(name,message,isProposal,type='diplomatic',title=''){
-  const countryName=String(name||'').trim();if(!countryName)return alert('Укажите название государства, управляемого ИИ.');
-  const ss=session(),history=localAIHistory.filter(x=>x.countryName===countryName).slice(-8);
+  const entered=String(name||'').trim();if(!entered)return alert('Укажите название государства, управляемого ИИ.');
+  const snapshot=world(),match=(snapshot.countries||[]).find(c=>String(c.id||'').toLowerCase()===entered.toLowerCase()||String(c.name||'').toLowerCase()===entered.toLowerCase()),countryId=match?.id||entered,countryName=match?.name||entered;
+  const ss=session(),history=localAIHistory.filter(x=>x.countryId===countryId).slice(-8);
   try{
-   const result=await api().api('/api/ai/diplomacy','POST',{countryId:countryName,countryName,message,proposalType:type,isProposal,history,world:world()});
-   localAIHistory.push({countryName,from:'Вы',text:message});
-   localAIHistory.push({countryName,from:countryName,text:result.reply||'Правительство рассмотрит обращение.'});
+   const result=await api().api('/api/ai/diplomacy','POST',{countryId,countryName,message,proposalType:type,isProposal,history,world:snapshot});
+   localAIHistory.push({countryId,countryName,from:'Вы',text:message});
+   localAIHistory.push({countryId,countryName,from:countryName,text:result.reply||'Правительство рассмотрит обращение.'});
    const status=result.proposalStatus||'pending',decision=result.decision||'none';
-   if(isProposal&&decision==='accept'){if(type==='embassy')state.relations[countryName]=Math.max(-100,Math.min(100,Number(state.relations[countryName]||0)+5));else{state.treaties=Array.isArray(state.treaties)?state.treaties:[];const pair=[state.selected,countryName].sort().join('|');if(!state.treaties.includes(pair))state.treaties.push(pair)}if(typeof save==='function')save()}
+   if(ss){await request('/social/ai-message','POST',{toCountryId:countryId,countryName,message,reply:result.reply||'Правительство рассмотрит обращение.',isProposal,proposalType:type,title,decision,advisorMessage:result.advisorMessage||''})}
+   else if(isProposal&&decision==='accept'){if(type==='embassy')state.relations[countryId]=Math.max(-100,Math.min(100,Number(state.relations[countryId]||0)+5));else{state.treaties=Array.isArray(state.treaties)?state.treaties:[];const pair=[state.selected,countryId].sort().join('|');if(!state.treaties.includes(pair))state.treaties.push(pair)}if(typeof save==='function')save()}
    const statusText={accepted:'ПРИНЯТО',rejected:'ОТКЛОНЕНО',counteroffer:'ВСТРЕЧНЫЕ УСЛОВИЯ',pending:'НА РАССМОТРЕНИИ',none:'ОТВЕТ'};
    addLocal(isProposal?'Ответ на дипломатическое предложение: '+statusText[status]:'Ответ правительства '+countryName,result.advisorMessage||result.reply||'Ответ получен.', 'diplomacy');
    if(isProposal&&decision==='accept')addLocal('Предложение принято: '+(title||type),countryName+' согласилось с инициативой. Ответ ИИ: '+result.reply,'treaty');
-   const historyHtml=localAIHistory.filter(x=>x.countryName===countryName).slice(-10).map(x=>'<article class="'+(x.from==='Вы'?'mine':'')+'"><small>'+esc(x.from)+'</small><p>'+esc(x.text)+'</p></article>').join('');
    const el=panel.querySelector('#wc-social-content');const resultBox=document.createElement('div');resultBox.className='wc-social-ai-result';resultBox.innerHTML='<b>Советник · '+esc(countryName)+'</b><p>'+esc(result.advisorMessage||result.reply||'Ответ получен.')+'</p><small>Статус инициативы: '+esc(statusText[status]||'Ответ')+'</small>';el.prepend(resultBox);updateBadge();
   }catch(err){alert('Не удалось получить дипломатический ответ ИИ: '+err.message)}
  }
