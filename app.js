@@ -28,13 +28,13 @@ async function wcAiRequest(path,payload){
 function wcAiCountries(){return (countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name,flag:x.info.flag})).filter(x=>x.id&&x.id!==state.selected).slice(0,220)}
 function wcAiSnapshot(){return {date:dateText(),turn:state.turn,player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected,treasury:state.treasury,gdp:state.gdp,stability:state.stability,prestige:state.prestige,army:state.army,manpower:state.manpower},relations:state.relations||{},wars:state.wars||[],treaties:state.treaties||[],laws:state.laws||[],countries:wcAiCountries()}}
 async function runWorldAI(){
- if(wcAiBusy||wcAiLastTurn===state.turn)return;
+ if(window.__replayingEvents||wcAiBusy||wcAiLastTurn===state.turn)return;
  wcAiBusy=true;wcAiLastTurn=state.turn;
  try{
   const result=await wcAiRequest('world-turn',wcAiSnapshot());
   (result.events||[]).slice(0,4).forEach(e=>{if(e&&e.title&&e.description)event(String(e.category||'МИРОВЫЕ СОБЫТИЯ').slice(0,32),String(e.title).slice(0,120),String(e.description).slice(0,600))});
   (result.actions||[]).slice(0,8).forEach(a=>{
-   if(!a||!a.countryId||a.countryId===state.selected)return;
+   if(!a||!a.countryId||a.countryId===state.selected||!countryMeta.some(x=>x.info.id===a.countryId))return;
    const name=(countries[a.countryId]||{}).name||a.countryName||a.countryId;
    if(a.type==='relation'&&Number.isFinite(Number(a.delta)))state.relations[a.countryId]=Math.max(-100,Math.min(100,Number(state.relations[a.countryId]||0)+Math.max(-8,Math.min(8,Number(a.delta)))));
    if(a.type==='treaty'&&!state.treaties.includes(a.countryId))state.treaties.push(a.countryId);
@@ -44,7 +44,7 @@ async function runWorldAI(){
   if(result.advisor)window.__wcLastAiBrief=String(result.advisor).slice(0,1400);
   updateUI();save();
  }catch(err){console.warn('World Chronicle AI:',err.message);window.__wcAiError=err.message}
- finally{wcAiBusy=false}
+ finally{wcAiBusy=false;if(wcAiLastTurn!==state.turn&&!window.__replayingEvents)runWorldAI()}
 }
 window.WC_AI={request:wcAiRequest,snapshot:wcAiSnapshot,enabled:()=>!!WC_AI_BASE};
 
@@ -446,7 +446,7 @@ load();ensureElection();if(state.regionsVisible){$('regions-toggle').classList.a
  new MutationObserver(sync).observe(document.getElementById('date-label'),{childList:true,subtree:true});
  new MutationObserver(sync).observe(document.getElementById('country-name'),{childList:true,subtree:true});
  new MutationObserver(sync).observe(document.getElementById('news-list'),{childList:true});
- document.getElementById('pax-jump-btn').onclick=()=>{const n=Number(document.getElementById('pax-jump-size').value)||1;window.__replayingEvents=true;for(let i=0;i<n;i++)advanceTurn();window.__replayingEvents=false;sync();const last=state.events[0];if(last)showChronicleEvent(last)};
+ document.getElementById('pax-jump-btn').onclick=()=>{const n=Number(document.getElementById('pax-jump-size').value)||1;window.__replayingEvents=true;for(let i=0;i<n;i++)advanceTurn();window.__replayingEvents=false;runWorldAI();sync();const last=state.events[0];if(last)showChronicleEvent(last)};
  sync();
 })();
 
