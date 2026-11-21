@@ -1,6 +1,6 @@
 /* WORLD CHRONICLE — playable browser strategy prototype */
 const SAVE_KEY='worldChronicleSave_v2';
-const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:false,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],initiatives:[],pendingOrders:[],geoLayer:null};
+const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:false,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],initiatives:[],pendingOrders:[],aiWorldState:{countries:{},lastSummary:''},geoLayer:null};
 const countries={
 'Russia':{name:'Российская Федерация',capital:'Москва',flag:'🇷🇺',population:'170 млн',economy:'Сильная',stability:72,military:'Высокие'},
 'United States of America':{name:'Соединённые Штаты',capital:'Вашингтон',flag:'🇺🇸',population:'330 млн',economy:'Крупнейшая',stability:81,military:'Очень высокие'},
@@ -19,31 +19,43 @@ const $=id=>document.getElementById(id),fmt=n=>Math.round(n).toLocaleString('ru-
 const WC_AI_BASE=String(window.WC_API_BASE||'').replace(/\/$/,'');
 let wcAiBusy=false,wcAiLastTurn=0;
 async function wcAiRequest(path,payload){
- if(!WC_AI_BASE)throw new Error('ИИ-сервер ещё не подключён. После публикации сервера укажите WC_API_BASE.');
+ if(!WC_AI_BASE)throw new Error('ИИ-сервер не настроен.');
  const response=await fetch(WC_AI_BASE+'/api/ai/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
  const data=await response.json().catch(()=>({}));
  if(!response.ok)throw new Error(data.error||'Ошибка ИИ-сервера ('+response.status+')');
  return data;
 }
-function wcAiCountries(){return (countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name,flag:x.info.flag})).filter(x=>x.id&&x.id!==state.selected).slice(0,220)}
-function wcAiSnapshot(){return {date:dateText(),turn:state.turn,player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected,treasury:state.treasury,gdp:state.gdp,stability:state.stability,prestige:state.prestige,army:state.army,manpower:state.manpower},relations:state.relations||{},wars:state.wars||[],treaties:state.treaties||[],laws:state.laws||[],countries:wcAiCountries()}}
+function wcAiCountries(){return (countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name,flag:x.info.flag,region:x.feature?.properties?.REGION_UN||x.feature?.properties?.CONTINENT||'',populationEstimate:x.feature?.properties?.POP_EST||null,gdpEstimate:x.feature?.properties?.GDP_MD_EST||null})).filter(x=>x.id&&x.id!==state.selected).slice(0,220)}
+function wcAiSnapshot(){
+ const previous=state.aiWorldState?.countries||{};
+ return {date:dateText(),year:state.year,scenario:scenarios[String(state.year)]||'Альтернативная история',turn:state.turn,player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected,treasury:state.treasury,gdp:state.gdp,stability:state.stability,prestige:state.prestige,army:state.army,manpower:state.manpower},relations:state.relations||{},wars:state.wars||[],treaties:state.treaties||[],laws:state.laws||[],countries:wcAiCountries(),previousReports:Object.entries(previous).map(([id,r])=>({id,summary:String(r.publicDecision||r.internalPolitics||'').slice(0,220),nextStep:String(r.nextStep||'').slice(0,140)})).slice(0,220)};
+}
 async function runWorldAI(){
  if(window.__replayingEvents||wcAiBusy||wcAiLastTurn===state.turn)return;
  wcAiBusy=true;wcAiLastTurn=state.turn;
  try{
   const result=await wcAiRequest('world-turn',wcAiSnapshot());
-  (result.events||[]).slice(0,4).forEach(e=>{if(e&&e.title&&e.description)event(String(e.category||'МИРОВЫЕ СОБЫТИЯ').slice(0,32),String(e.title).slice(0,120),String(e.description).slice(0,600))});
-  (result.actions||[]).slice(0,8).forEach(a=>{
-   if(!a||!a.countryId||a.countryId===state.selected||!countryMeta.some(x=>x.info.id===a.countryId))return;
-   const name=(countries[a.countryId]||{}).name||a.countryName||a.countryId;
-   if(a.type==='relation'&&Number.isFinite(Number(a.delta)))state.relations[a.countryId]=Math.max(-100,Math.min(100,Number(state.relations[a.countryId]||0)+Math.max(-8,Math.min(8,Number(a.delta)))));
-   if(a.type==='treaty'&&!state.treaties.includes(a.countryId))state.treaties.push(a.countryId);
-   if(a.type==='war'&&!state.wars.includes(a.countryId))state.wars.push(a.countryId);
-   if(a.description)event('ДЕЙСТВИЯ ИИ',String(a.title||('Решение государства: '+name)).slice(0,120),String(a.description).slice(0,500));
+  state.aiWorldState=state.aiWorldState||{countries:{},lastSummary:''};
+  state.aiWorldState.countries=state.aiWorldState.countries||{};
+  (result.countryReports||[]).forEach(r=>{
+   if(!r||!r.countryId||r.countryId===state.selected||!countryMeta.some(x=>x.info.id===r.countryId))return;
+   const fields=['government','internalPolitics','economy','society','diplomacy','defense','publicDecision','nextStep'];
+   const report={countryId:r.countryId,lastUpdatedTurn:state.turn};
+   fields.forEach(k=>{if(r[k])report[k]=String(r[k]).slice(0,1800)});
+   state.aiWorldState.countries[r.countryId]=report;
   });
-  if(result.advisor)window.__wcLastAiBrief=String(result.advisor).slice(0,1400);
+  if(result.worldSummary){state.aiWorldState.lastSummary=String(result.worldSummary).slice(0,5000);event('МИРОВАЯ ОБСТАНОВКА','Общий обзор мира · '+dateText(),state.aiWorldState.lastSummary.slice(0,1800))}
+  (result.events||[]).slice(0,12).forEach(e=>{if(e&&e.title&&e.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ').slice(0,32),String(e.title).slice(0,180),String(e.description).slice(0,1800))});
+  (result.actions||[]).slice(0,80).forEach(a=>{
+   if(!a||!a.countryId||a.countryId===state.selected||!countryMeta.some(x=>x.info.id===a.countryId))return;
+   const target=a.targetCountryId;
+   if(a.type==='relation'&&target&&target!==state.selected&&countryMeta.some(x=>x.info.id===target)&&Number.isFinite(Number(a.delta)))state.relations[target]=Math.max(-100,Math.min(100,Number(state.relations[target]||0)+Math.max(-8,Math.min(8,Number(a.delta)))));
+   if(a.type==='treaty'&&target&&!state.treaties.includes(target))state.treaties.push(target);
+   if(a.type==='war'&&target&&!state.wars.includes(target))state.wars.push(target);
+  });
+  if(result.advisor){window.__wcLastAiBrief=String(result.advisor).slice(0,3000);$('advisor-text').textContent=window.__wcLastAiBrief.slice(0,700)}
   updateUI();save();
- }catch(err){console.warn('World Chronicle AI:',err.message);window.__wcAiError=err.message}
+ }catch(err){console.warn('World Chronicle AI:',err.message);window.__wcAiError=err.message;$('advisor-text').textContent='ИИ не смог обновить мировую хронику: '+err.message}
  finally{wcAiBusy=false;if(wcAiLastTurn!==state.turn&&!window.__replayingEvents)runWorldAI()}
 }
 window.WC_AI={request:wcAiRequest,snapshot:wcAiSnapshot,enabled:()=>!!WC_AI_BASE};
@@ -112,7 +124,7 @@ function openCountryProfile(id,feature,info){
  '<div class="wc-country-facts"><div><small>СТОЛИЦА</small><b>'+escCountryHtml(capital)+'</b></div><div><small>НАСЕЛЕНИЕ</small><b>'+escCountryHtml(popText)+'</b></div><div><small>ЭКОНОМИКА</small><b>'+escCountryHtml(gdpText)+'</b></div><div><small>РЕГИОН</small><b>'+escCountryHtml(region||'Нет данных')+'</b></div></div>'+
  '<div class="wc-country-relations"><span><small>ОТНОШЕНИЯ С ВАШЕЙ СТРАНОЙ</small><b>'+relationLabel+'</b></span><strong>'+ (relation>0?'+':'')+relation+'</strong></div>'+
  '<div class="wc-country-actions">'+(isPlayer?'<button class="pax-secondary" id="wc-country-own">Это ваша страна</button>':'<button class="pax-primary" id="wc-country-diplomacy">✦ Дипломатические действия</button><button class="pax-secondary" id="wc-country-chat">☏ Открыть переговоры</button>')+'</div>'+
- '<p class="wc-country-note">Показатели, которых нет в данных сценария, не подменяются вымышленными значениями. Отношения рассчитываются относительно выбранной вами страны.</p>';
+ '<section class="wc-ai-country-report"><div class="wc-country-kicker">ПУБЛИЧНАЯ ХРОНИКА · ИИ</div>'+(state.aiWorldState?.countries?.[id]?'<div class="wc-ai-report-date">Обновлено: ход '+escCountryHtml(state.aiWorldState.countries[id].lastUpdatedTurn||'—')+'</div>'+[['ПРАВИТЕЛЬСТВО',state.aiWorldState.countries[id].government],['ВНУТРЕННЯЯ ПОЛИТИКА',state.aiWorldState.countries[id].internalPolitics],['ЭКОНОМИКА И ОБЩЕСТВО',(state.aiWorldState.countries[id].economy||'')+' '+(state.aiWorldState.countries[id].society||'')],['ВНЕШНЯЯ ПОЛИТИКА',state.aiWorldState.countries[id].diplomacy],['ОБОРОНА И ВООРУЖЁННЫЕ СИЛЫ',state.aiWorldState.countries[id].defense],['ПУБЛИЧНЫЕ ДЕЙСТВИЯ',state.aiWorldState.countries[id].publicDecision],['ДАЛЬНЕЙШИЕ ПЛАНЫ',state.aiWorldState.countries[id].nextStep]].filter(x=>x[1]).map(x=>'<div class="wc-ai-report-block"><b>'+x[0]+'</b><p>'+escCountryHtml(x[1])+'</p></div>').join(''):'<p>ИИ ещё не сформировал публичный доклад по этому государству. Перейдите к следующему ходу, чтобы обновить мировую хронику.</p>')+'</section><p class="wc-country-note">Публикуются только открытые решения и наблюдаемые действия. Закрытые переговоры, разведывательные сведения и секретные планы в хронику не попадают.</p>';
  const dip=document.getElementById('wc-country-diplomacy');if(dip)dip.onclick=()=>{drawer.classList.remove('country-open');diplomacyTalk(id)};
  const chat=document.getElementById('wc-country-chat');if(chat)chat.onclick=()=>{drawer.classList.remove('country-open');window.__paxOpenChatWithTarget?.(id)};
 }
@@ -193,11 +205,11 @@ if(window.L){
 function modal(title,html){$('modal-title').textContent=title;$('modal-content').innerHTML=html;$('modal-backdrop').classList.remove('hidden')}function closeModal(){$('modal-backdrop').classList.add('hidden')}
 function save(){const copy={...state,geoLayer:null};localStorage.setItem(SAVE_KEY,JSON.stringify(copy));$('advisor-text').textContent='Кампания сохранена в этом браузере.'}
 function load(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return false;Object.assign(state,s);state.geoLayer=null;selectCountry(state.selected||'Russia');state.events=[];window.__replayingEvents=true;(s.events||[]).slice().reverse().forEach(e=>event(e.category,e.title,e.description));window.__replayingEvents=false;updateUI();return true}catch(e){return false}}
-function resetCampaign(year){Object.assign(state,{year:Number(year),month:0,day:1,turn:1,paused:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],initiatives:[],pendingOrders:[]});ensureElection();$('scenario-label').textContent=scenarios[year];$('scenario-select').value=String(year);selectCountry('Russia');updateUI();event('ПОЛИТИКА','Кампания началась','Вы вступили в новую эпоху. Судьба государства теперь зависит от ваших решений.');save()}
+function resetCampaign(year){Object.assign(state,{year:Number(year),month:0,day:1,turn:1,paused:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],initiatives:[],pendingOrders:[],aiWorldState:{countries:{},lastSummary:''}});ensureElection();$('scenario-label').textContent=scenarios[year];$('scenario-select').value=String(year);selectCountry('Russia');updateUI();event('ПОЛИТИКА','Кампания началась','Вы вступили в новую эпоху. Судьба государства теперь зависит от ваших решений.');save()}
 function initiativeType(text){const s=text.toLowerCase();if(/арм|мобилиз|дивиз|флот|учени|военн|фронт|обор|ракета/.test(s))return 'ВОЕННОЕ ДЕЛО';if(/переговор|посол|договор|соглаш|альянс|нота|диплом/.test(s))return 'ДИПЛОМАТИЯ';if(/завод|промышлен|инфраструкт|инвест|строитель|торгов|эконом|бюджет|налог/.test(s))return 'ЭКОНОМИКА';return 'ПОЛИТИКА'}
 function addInitiative(text){const value=String(text||'').trim();if(!value)return null;const category=initiativeType(value),weeks=category==='ЭКОНОМИКА'?5:category==='ВОЕННОЕ ДЕЛО'?3:category==='ДИПЛОМАТИЯ'?2:4;const item={id:'I-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),text:value,category,status:'В очереди',progress:0,weeksLeft:weeks,totalWeeks:weeks,createdTurn:state.turn};state.initiatives=state.initiatives||[];state.initiatives.unshift(item);return item}
 function processInitiatives(){const list=state.initiatives||[];for(const x of list){if(x.status==='Завершено'||x.status==='Заблокировано')continue;if(x.status==='В очереди')x.status='В процессе';if(x.category==='ЭКОНОМИКА'&&state.treasury<8){x.status='Сдерживается';continue}if(x.status==='Сдерживается')x.status='В процессе';x.weeksLeft=Math.max(0,(x.weeksLeft||1)-1);x.progress=Math.min(100,Math.round(100*(1-x.weeksLeft/(x.totalWeeks||1))));if(x.weeksLeft===0){x.status='Завершено';x.progress=100;if(x.category==='ЭКОНОМИКА'){state.gdp=Math.min(300,state.gdp+2);state.treasury=Math.max(0,state.treasury-5)}else if(x.category==='ВОЕННОЕ ДЕЛО'){state.army=Math.min(500,state.army+2);state.manpower=Math.max(0,state.manpower-1)}else if(x.category==='ДИПЛОМАТИЯ'){state.prestige=Math.min(100,state.prestige+2)}else{state.stability=Math.min(100,state.stability+1);state.prestige=Math.min(100,state.prestige+1)}event('ИНИЦИАТИВА','Завершена инициатива: '+x.text.slice(0,75),'Инициатива завершена в рамках доступной игровой модели. Категория: '+x.category+'.');}}}
-function advanceTurn(){state.turn++;state.day+=7;const days=new Date(state.year,state.month+1,0).getDate();while(state.day>days){state.day-=days;state.month++;if(state.month>11){state.month=0;state.year++}}tickElection();const income=Math.max(1,state.gdp*.055);state.treasury+=income-3-state.wars.length*2;state.stability=Math.max(0,Math.min(100,state.stability+(state.treasury>30?.15:-.45)-(state.wars.length?1.2:0)));state.prestige=Math.max(0,Math.min(100,state.prestige+(state.treaties.length?.1:0)));processInitiatives();updateUI();const headlines=['Кабинет министров подвёл итоги недели','Эксперты представили экономический прогноз','В столице состоялось заседание государственного совета','Дипломатические миссии обменялись нотами','Промышленные предприятия расширяют производство'];event(['ПОЛИТИКА','ЭКОНОМИКА','ДИПЛОМАТИЯ'][state.turn%3],headlines[state.turn%headlines.length],'Доход казны за период: ₽ '+fmt(income)+' млрд. Текущая стабильность: '+fmt(state.stability)+'%.');$('advisor-text').textContent=state.treasury<25?'Казна сокращается. Рекомендуется пересмотреть расходы.':state.stability<45?'Общественная стабильность падает. Нужны реформы.':'Государство сохраняет управляемость. Продолжайте укреплять его позиции.';save();runWorldAI()}
+function advanceTurn(){state.turn++;state.day+=7;const days=new Date(state.year,state.month+1,0).getDate();while(state.day>days){state.day-=days;state.month++;if(state.month>11){state.month=0;state.year++}}tickElection();const income=Math.max(1,state.gdp*.055);state.treasury+=income-3-state.wars.length*2;state.stability=Math.max(0,Math.min(100,state.stability+(state.treasury>30?.15:-.45)-(state.wars.length?1.2:0)));state.prestige=Math.max(0,Math.min(100,state.prestige+(state.treaties.length?.1:0)));processInitiatives();updateUI();$('advisor-text').textContent='ИИ анализирует обстановку и готовит решения правительств мира…';save();runWorldAI()}
 function countryPicker(){const keys=Object.keys(countries);modal('Выберите государство','<div class="country-picker">'+keys.map(k=>'<button class="country-option" data-country="'+k+'"><strong>'+countries[k].flag+' '+countries[k].name+'</strong><small>Столица: '+countries[k].capital+'</small></button>').join('')+'</div>');document.querySelectorAll('[data-country]').forEach(b=>b.onclick=()=>{selectCountry(b.dataset.country);closeModal();save()})}
 function actionButton(label,desc,action){return '<button class="game-action" data-game-action="'+action+'"><strong>'+label+'</strong><small>'+desc+'</small><span>→</span></button>'}
 function section(title,sub,content){modal(title,'<p class="modal-intro">'+sub+'</p><div class="game-panel-content">'+content+'</div>')}
