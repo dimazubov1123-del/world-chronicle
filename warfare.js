@@ -220,6 +220,39 @@
   };
   requestAnimationFrame(tick);
  }
+ function friendlyPath(start,target){
+  const startKey=fkey(start),targetKey=fkey(target);if(startKey===targetKey)return [];
+  const queue=[start],previous=new Map([[startKey,null]]),nodes=new Map([[startKey,start]]);
+  let found=false,visited=0;
+  while(queue.length&&visited<1800&&!found){
+   const current=queue.shift();visited++;
+   for(const n of adjacent(current)){
+    const next=n.feature,k=fkey(next);
+    if(previous.has(k)||controller(next)!==state.selected)continue;
+    previous.set(k,fkey(current));nodes.set(k,next);
+    if(k===targetKey){found=true;break}
+    queue.push(next);
+   }
+  }
+  if(!found)return null;
+  const path=[];let cursor=targetKey;
+  while(cursor&&cursor!==startKey){path.unshift(nodes.get(cursor));cursor=previous.get(cursor)}
+  return path;
+ }
+ function animateRoute(unit,features){
+  if(!window.L||!map||!features?.length){syncUnits();return}
+  const points=features.map(center),start=Array.isArray(unit.position)?unit.position.slice():points[0];
+  points.unshift(start);
+  if(points.length<2){syncUnits();return}
+  const marker=L.marker(points[0],{pane:'unitsPane',interactive:false,icon:L.divIcon({className:'wc-army-marker wc-army-moving',html:'<span>⚑</span><small>'+esc(unit.name)+'</small>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map);
+  const duration=Math.min(2400,Math.max(700,(points.length-1)*420)),started=performance.now(),segments=points.length-1;
+  const tick=now=>{
+   const t=Math.min(1,(now-started)/duration),scaled=t*segments,index=Math.min(segments-1,Math.floor(scaled)),part=t>=1?1:scaled-index,ease=part<.5?2*part*part:1-Math.pow(-2*part+2,2)/2;
+   const a=points[index],b=points[index+1];marker.setLatLng([a[0]+(b[0]-a[0])*ease,a[1]+(b[1]-a[1])*ease]);
+   if(t<1)requestAnimationFrame(tick);else{map.removeLayer(marker);syncUnits()}
+  };
+  requestAnimationFrame(tick);
+ }
  function flashCapture(feature){
   if(!window.L||!map||!feature)return;
   const pulse=L.geoJSON(feature,{interactive:false,style:{color:'#f4d58d',weight:3,opacity:0,fillColor:'#e8b75d',fillOpacity:.05,className:'wc-capture-flash'}}).addTo(map);
@@ -318,14 +351,16 @@
      }else if(op.type==='move'||op.type==='attack'){
       const unit=armies().find(u=>u.id===op.unitId),feature=featureByKey.get(op.targetRegionKey);if(!unit||!feature){results.push('Операция отклонена: соединение или регион не найден.');return}
       const ctrl=controller(feature),from=unitRegion(unit);
-      if(!from||!adjacent(from).some(x=>fkey(x.feature)===fkey(feature))){results.push('Операция отклонена: '+unit.name+' не может пройти напрямую в несоседний регион.');return}
+      if(!from){results.push('Операция отклонена: не удалось определить исходный регион '+unit.name+'.');return}
       if(op.type==='move'){
        if(ctrl!==state.selected){results.push('Передислокация отменена: регион не находится под вашим контролем.');return}
-       const prev=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(feature.properties||{});animateUnit(unit,prev,unit.position,feature,false);
-       results.push(unit.name+' передислоцировано в '+unit.location+'.');event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение перемещено в соседний регион '+unit.location+'.',{location:unit.location});
+       const path=friendlyPath(from,feature);if(!path){results.push('Передислокация отменена: безопасный сухопутный маршрут через контролируемые регионы не найден.');return}
+       const prev=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(feature.properties||{});animateRoute(unit,[from,...path]);
+       results.push(unit.name+' передислоцировано в '+unit.location+' по маршруту из '+path.length+' регионов.');event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение прошло по безопасному сухопутному маршруту и прибыло в регион '+unit.location+'.',{location:unit.location});
       }else{
+       if(!adjacent(from).some(x=>fkey(x.feature)===fkey(feature))){results.push('Наступление отменено: цель не граничит с текущей позицией соединения.');return}
        if(!atWar(state.selected,ctrl)){results.push('Наступление отменено: с государством-контролёром региона не объявлена война.');return}
-       const won=attackRegion(unit,ctrl,feature);results.push(won?'Захвачен регион '+name(feature.properties||{})+' силами '+unit.name+'.':'Наступление '+unit.name+' на регион '+name(feature.properties||{})+' остановлено обороной противника.');
+       const won=attackRegion(unit,ctrl,feature);results.push(won?'Захвачен регион '+name(feature.properties||{})+' силами '+unit.name+'.':'Наступление '+name(feature.properties||{})+' остановлено обороной противника.');
       }
      }else if(op.type==='declare_war'){
       const target=op.targetCountryId;if(!target||target===state.selected){results.push('Объявление войны отклонено: некорректная цель.');return}
