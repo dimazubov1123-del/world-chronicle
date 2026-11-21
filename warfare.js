@@ -298,8 +298,12 @@
    const own=regionFeatures().filter(f=>admin(f.properties||{})===state.selected),neighborCountries=new Set();
    own.forEach(f=>adjacent(f).forEach(n=>neighborCountries.add(admin(n.feature.properties||{}))));
    wars().forEach(w=>String(w).split('|').forEach(id=>neighborCountries.add(id)));
-   const allowed=new Set([state.selected,...neighborCountries]);
-   const regions=regionFeatures().filter(f=>allowed.has(admin(f.properties||{}))).slice(0,700).map(f=>({key:fkey(f),name:name(f.properties||{}),countryId:admin(f.properties||{}),controller:controller(f)}));
+   const relevant=new Map(),addRegion=f=>{if(f)relevant.set(fkey(f),f)};
+   armies().forEach(u=>{const f=unitRegion(u);if(f){addRegion(f);adjacent(f).forEach(n=>addRegion(n.feature))}});
+   const capital=initialRegion(state.selected,capitals[state.selected]||centerForCountry(state.selected));addRegion(capital);
+   own.forEach(addRegion);
+   own.forEach(f=>adjacent(f).forEach(n=>addRegion(n.feature)));
+   const regions=Array.from(relevant.values()).slice(0,120).map(f=>({key:fkey(f),name:name(f.properties||{}),countryId:admin(f.properties||{}),controller:controller(f)}));
    return {date:dateText(),player:{id:state.selected,name:(countries[state.selected]||{}).name||state.selected},treasury:state.treasury,manpower:state.manpower,army:state.army,wars:wars().slice(),armies:armies().map(u=>({id:u.id,name:u.name,type:u.type,strength:u.strength,location:u.location,regionKey:unitRegion(u)?u.regionKey:null})),regions,countries:(countryMeta||[]).map(x=>({id:x.info.id,name:x.info.name}))};
   }
   function executeOrders(operations){
