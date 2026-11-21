@@ -86,6 +86,7 @@
    if(result.playerReport)event('ДЕЙСТВИЯ ПРАВИТЕЛЬСТВА','Отчёт за период '+startDate+' — '+dateText(),String(result.playerReport).slice(0,9000));
    if(result.worldSummary)event('МИРОВАЯ ОБСТАНОВКА','Обзор мира · '+startDate+' — '+dateText(),String(result.worldSummary).slice(0,5000));
    (result.events||[]).forEach(e=>{if(e?.title&&e?.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ'),String(e.title),String(e.description),e)});
+   if(net){for(const a of (result.actions||[])){if(a?.countryId&&a.countryId!==net.countryId&&a.targetCountryId===net.countryId){const actor=(base.countries||[]).find(c=>c.id===a.countryId);try{await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/social/ai-action','POST',{token:net.token,action:a,countryName:actor?.name||a.countryId,message:a.type==='treaty'?'Предлагаем начать оформление двустороннего международного договора.':undefined})}catch(socialError){console.warn('Не удалось доставить дипломатическое уведомление ИИ:',socialError.message)}}}}
    (result.actions||[]).forEach(a=>{
     if(!a?.countryId||a.countryId===state.selected)return;
     const target=a.targetCountryId;
