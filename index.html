@@ -79,7 +79,7 @@
       </aside>
     </main>
     <div class="pax-top-session"><button id="pax-menu-btn">☰</button><span class="pax-session-name">WORLD CHRONICLE · <b id="pax-session-country">Россия</b></span><span class="pax-session-date" id="pax-date-pill">1 января 1936</span><button id="pax-events-btn">▤ События <b id="pax-events-count">0</b></button><select id="pax-jump-size"><option value="1">1 неделя</option><option value="4">1 месяц</option><option value="13">3 месяца</option><option value="26">6 месяцев</option><option value="52">1 год</option></select><button id="pax-jump-btn">⏩ Перемотать</button></div>
-<div class="pax-map-toolbar"><button class="pax-float-button active" data-pax-panel="actions">✦ <span>Действия</span></button><button class="pax-float-button" data-pax-panel="chat">☏ <span>Чат</span></button><button class="pax-float-button" data-pax-panel="projects">▣ <span>Операции</span></button><button class="pax-float-button" data-pax-panel="search">⌕ <span>Поиск</span></button></div>
+<div class="pax-map-toolbar"><button class="pax-float-button active" data-pax-panel="actions">✦ <span>Действия</span></button><button class="pax-float-button" data-pax-panel="chat">☏ <span>Чат</span></button><button class="pax-float-button" data-pax-panel="projects">▣ <span>Операции</span></button><button class="pax-float-button" id="wc-war-room-btn">⚔ <span>Война</span></button><button class="pax-float-button" data-pax-panel="search">⌕ <span>Поиск</span></button></div>
 <section class="pax-drawer hidden" id="pax-drawer"><header><strong id="pax-drawer-title">Действия</strong><button id="pax-drawer-close">×</button></header><div id="pax-drawer-content"></div></section>
 <div class="pax-country-corner"><button id="pax-own-country"><span id="pax-own-flag">🇷🇺</span><span><b id="pax-own-name">Российская Федерация</b><small>Ваша страна · Карточка</small></span><i>⌃</i></button><button id="pax-advisor-open">✦ Советник</button></div>
 <footer class="bottom-bar"><div class="footer-left"><span class="live-dot"></span> МИР АКТИВЕН <span class="meta-divider"></span><span id="turn-label">ХОД 001</span></div><div class="time-controls"><span class="speed-label">СКОРОСТЬ</span><button class="speed-button active" data-speed="1">Ⅰ</button><button class="speed-button" data-speed="2">Ⅱ</button><button class="speed-button" data-speed="3">Ⅲ</button><button class="pause-button" id="pause-button">Ⅱ ПАУЗА</button><button class="next-button" id="next-turn">СЛЕДУЮЩИЙ ХОД <span>→</span></button></div><div class="footer-right">WORLD CHRONICLE <span>BUILD 0.2 · © 2026</span></div></footer>
@@ -97,5 +97,6 @@
   <script>window.WC_API_BASE = location.hostname.endsWith("github.io") ? "https://world-chronicle-production.up.railway.app" : location.origin;</script>
   <script src="app.js"></script>
   <script src="turn-system.js"></script>
+  <script src="warfare.js"></script>
 </body>
 </html>
