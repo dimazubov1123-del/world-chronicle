@@ -266,7 +266,7 @@
   document.getElementById('wc-war-room-btn')?.addEventListener('click',openWarRoom);
   document.getElementById('wc-front-toggle')?.addEventListener('click',toggleFronts);
   document.getElementById('pax-own-country')?.addEventListener('click',()=>syncUnits());
-  window.addEventListener('wc-regions-loaded',()=>{rebuildIndex();bindRegionLayer();armies().forEach(u=>unitRegion(u));syncUnits()});
+  window.addEventListener('wc-regions-loaded',()=>{adjacencyCache.clear();rebuildIndex();bindRegionLayer();armies().forEach(u=>unitRegion(u));syncUnits()});
   document.getElementById('wc-front-toggle')?.classList.toggle('active',frontsVisible);
   function frontSnapshot(){return frontContacts().map(x=>({heldRegion:name(x.a.properties||{}),heldBy:x.sideA,enemyRegion:name(x.b.properties||{}),enemyCountry:x.sideB})).slice(0,100)}
   window.WC_WAR={open:openWarRoom,sync:syncUnits,selected:()=>selectedUnitId,toggleFronts,frontSnapshot,snapshot:()=>armies().map(u=>({id:u.id,name:u.name,regionKey:u.regionKey,strength:u.strength,location:u.location}))};
