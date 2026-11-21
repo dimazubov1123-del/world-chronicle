@@ -65,8 +65,8 @@
    if(commandOperations.length){
     const execution=window.WC_WAR.executeOrders(commandOperations);
     if(execution.length)event('ИСПОЛНЕНИЕ ПРИКАЗОВ','Результаты распоряжений верховного командования',execution.join('\n\n'),{importance:execution.some(x=>/Захвачен|Объявлена война/.test(x))?'major':'normal',background:'Штаб разобрал текстовые распоряжения и передал допустимые операции игровому движку.',development:execution.join('\n\n'),consequences:'Выполненные изменения отражены на карте и в показателях государства.',reaction:'Публичная хроника фиксирует подтверждённые результаты.'});
-   }else if(orders.length&&(commandClarification||commandSummary)){
-    event('ШТАБНОЙ ДОКЛАД','Приказ не исполнен полностью',commandClarification||commandSummary,{importance:'normal'});
+   }else if(orders.length){
+    event('ШТАБНОЙ ДОКЛАД','Приказ не преобразован в игровые действия',commandClarification||commandSummary||'ИИ не смог определить однозначные игровые операции. Уточните название соединения, регион, государство или желаемую программу и отправьте приказ повторно.',{importance:'normal'});
    }
    if(result.playerReport)event('ДЕЙСТВИЯ ПРАВИТЕЛЬСТВА','Отчёт за период '+startDate+' — '+dateText(),String(result.playerReport).slice(0,9000));
    if(result.worldSummary)event('МИРОВАЯ ОБСТАНОВКА','Обзор мира · '+startDate+' — '+dateText(),String(result.worldSummary).slice(0,5000));
