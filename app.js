@@ -1,6 +1,6 @@
 /* WORLD CHRONICLE — playable browser strategy prototype */
 const SAVE_KEY='worldChronicleSave_v2';
-const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:true,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],periodArchive:[],currentPeriod:null,initiatives:[],pendingOrders:[],aiWorldState:{countries:{},lastSummary:''},geoLayer:null,armies:[],occupiedRegions:{}};
+const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:true,citiesVisible:true,frontsVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],periodArchive:[],currentPeriod:null,initiatives:[],pendingOrders:[],aiWorldState:{countries:{},lastSummary:''},geoLayer:null,armies:[],occupiedRegions:{}};
 const countries={
 'Russia':{name:'Российская Федерация',capital:'Москва',flag:'🇷🇺',population:'170 млн',economy:'Сильная',stability:72,military:'Высокие'},
 'United States of America':{name:'Соединённые Штаты',capital:'Вашингтон',flag:'🇺🇸',population:'330 млн',economy:'Крупнейшая',stability:81,military:'Очень высокие'},
@@ -236,7 +236,7 @@ function loadRegions(){
     const extra=await Promise.all(supplements.map(async ([admin,url])=>{try{const r=await fetch(url,{cache:'force-cache'});if(!r.ok)return [];const g=await r.json();return (g.features||[]).map(f=>({...f,properties:{...(f.properties||{}),admin,name:(f.properties||{}).shapeName||(f.properties||{}).name||admin,geonunit:admin}}))}catch(e){return []}}));
     const replaced=new Set(supplements.map(x=>x[0]));
     data.features=(data.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||''))).concat(...extra);
-    regionData=data;window.__wcRegionData=data;for(const f of data.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}regionsLoading=false;refreshRegions();$('map-hint').textContent='Подробные административные регионы загружены по всему миру.'})
+    regionData=data;window.__wcRegionData=data;window.dispatchEvent(new Event('wc-regions-loaded'));for(const f of data.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}regionsLoading=false;refreshRegions();$('map-hint').textContent='Подробные административные регионы загружены по всему миру.'})
   .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
 }
 if(window.L){
