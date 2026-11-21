@@ -85,3 +85,37 @@ body{background:#080e17}
 body.event-open{overflow:hidden}
 @media(max-width:1100px){.workspace{grid-template-columns:245px minmax(300px,1fr)}}
 @media(max-width:720px){.workspace{display:flex;flex-direction:column}.event-overlay{padding:12px}.event-art{height:145px}.event-copy{padding:20px 17px 22px}.event-copy h2{font-size:19px}.event-topline{padding:0 10px;font-size:8px}.event-topline span:last-child{font-size:8px}}
+
+/* World Chronicle — grand-strategy navigation and HUD */
+.topbar{display:grid;grid-template-columns:minmax(210px,1fr) auto minmax(150px,1fr);gap:20px;height:76px;padding:0 22px;background:linear-gradient(180deg,#152131,#0d1723);border-bottom:1px solid #3a4a5e}
+.brand-mark{width:40px;height:40px;border-radius:3px;font-size:24px;box-shadow:inset 0 0 0 3px #182638,0 0 0 1px #8d7549}.brand strong{font-size:13px;letter-spacing:2px}.brand small{font-size:8px}
+.campaign-meta{justify-content:center;gap:13px;white-space:nowrap;font-size:11px}
+.resource-chip{display:flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid #304156;background:#101c2a;border-radius:3px;color:#9baabd;font-size:9px;text-transform:uppercase;letter-spacing:.6px}
+.resource-chip b{color:#e8d5ad;font:700 11px Manrope;letter-spacing:0}.resource-symbol{font-style:normal;color:#d0ad68;font-size:12px}
+.top-actions{justify-content:flex-end;gap:9px}
+.sound-toggle{height:30px;padding:0 10px;border:1px solid #66583e;background:#282719;color:#d9bd83;border-radius:3px;display:flex;align-items:center;gap:7px;cursor:pointer;font:700 10px Manrope;letter-spacing:.6px}
+.sound-toggle span{font-size:8px}.sound-toggle.sound-off{color:#8391a3;border-color:#354458;background:#172333}
+.workspace{grid-template-columns:258px minmax(380px,1fr) 310px}
+.left-panel,.right-panel{background:linear-gradient(180deg,#111d2bfa,#0b1521fa);padding-top:19px}
+.panel-heading{margin-bottom:20px}.panel-heading h2{font-size:20px;letter-spacing:-.5px}
+.nav-group-label{margin:18px 0 7px;padding:0 9px;color:#65768b;font:800 8px Manrope;letter-spacing:1.45px}
+.main-nav{gap:3px}
+.nav-item{position:relative;min-height:39px;padding:9px 10px;border:1px solid transparent;border-radius:3px;color:#9baabd;font-size:10px;letter-spacing:.1px}
+.nav-item>span:nth-child(2){flex:1}.nav-item:hover{background:#1a2a3c;border-color:#2c4057;color:#e7edf4}
+.nav-item.active{background:linear-gradient(90deg,#3b3325,#1a2a3b 82%);border-color:#5c503a;box-shadow:inset 3px 0 #d0ad68;color:#f3ead8}
+.nav-icon{width:20px;height:20px;display:grid;place-items:center;border:1px solid #35465b;border-radius:3px;background:#172638;font-size:13px}
+.nav-item.active .nav-icon{color:#e0c181;border-color:#766442;background:#342f25}
+.nav-item kbd{font:600 8px Manrope;color:#607188;background:#101a27;border:1px solid #29394d;border-radius:2px;padding:2px 5px}
+.country-card{border-radius:3px;padding:13px;background:linear-gradient(115deg,#1d3043,#142131);border-color:#3a4e64}
+.country-flag{border-radius:2px;background:#263a50}.stat-box{border-radius:3px;padding:11px;background:linear-gradient(145deg,#19293b,#111c29)}
+.select-control{border-radius:3px;background:#142234}
+.map-toolbar{height:76px;padding:0 20px;background:linear-gradient(180deg,#182638,#111d2b)}.map-title strong{font-size:16px}
+.map-tools{gap:5px}.tool-button{border-radius:3px;padding:9px 11px;background:#111d2a}
+.right-panel .panel-heading h2{font-size:19px}.news-item{padding:15px 1px;border-bottom:1px solid #26374a}
+.news-item h3{font-size:11px;line-height:1.5}.news-tag{padding:3px 5px;background:#1d2b3c;border-radius:2px}
+.action-card{border-radius:3px;padding:12px;background:linear-gradient(100deg,#192a3c,#142131)}
+.advisor-card{border-radius:3px;background:linear-gradient(120deg,#1b2e3d,#142333)}
+.bottom-bar{height:60px;background:linear-gradient(180deg,#142131,#0b1520);padding:0 22px}
+.speed-button,.pause-button{border-radius:3px}.next-button{height:34px;border-radius:3px;letter-spacing:.8px}.left-footer{margin-top:25px}
+@media(max-width:1150px){.topbar{grid-template-columns:1fr auto}.campaign-meta{grid-column:1/-1;grid-row:2;justify-content:flex-start;overflow:hidden}.topbar{height:94px}.workspace{grid-template-columns:235px minmax(320px,1fr)}.right-panel{display:none}}
+@media(max-width:760px){.topbar{height:auto;min-height:100px;grid-template-columns:1fr auto;padding:10px 12px;gap:8px}.campaign-meta{grid-column:1/-1;grid-row:2;flex-wrap:wrap;gap:6px}.brand small{display:none}.resource-chip{padding:5px}.workspace{display:flex;flex-direction:column;overflow:auto}.left-panel{order:0;overflow:visible;padding:13px}.left-panel .stat-grid,.left-panel .field-label,.left-panel .select-control,.left-panel .section-rule,.left-panel .country-card,.left-panel .section-title,.left-panel .left-footer{display:none}.left-panel .panel-heading{margin:0 0 9px}.left-panel .main-nav{display:flex;overflow-x:auto;padding-bottom:4px}.nav-group-label{display:none}.nav-item{flex:0 0 auto;white-space:nowrap;min-height:34px}.nav-item kbd{display:none}.map-stage{min-height:65vh;order:1}.right-panel{display:block;order:2;max-height:420px}.bottom-bar{position:sticky;bottom:0;z-index:800;padding:0 9px}.footer-right{display:none}.speed-label{display:none}.next-button{font-size:8px;padding:0 8px}.pause-button{font-size:8px;padding:0 7px}}
