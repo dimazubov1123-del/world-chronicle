@@ -99,10 +99,10 @@ function compactWorld(b){
  const priority=allCountries.filter(c=>active.has(c.id));
  const major=[...allCountries].sort((a,b)=>(Number(b.gdpEstimate)||0)-(Number(a.gdpEstimate)||0)).slice(0,6);
  const chosen=new Set(),batch=[];
- const add=c=>{if(c&&!chosen.has(c.id)&&batch.length<3){chosen.add(c.id);batch.push(c)}};
+ const add=c=>{if(c&&!chosen.has(c.id)&&batch.length<5){chosen.add(c.id);batch.push(c)}};
  priority.slice(0,3).forEach(add);major.forEach(add);
  const rotating=allCountries.filter(c=>!chosen.has(c.id));
- if(rotating.length){const offset=((Math.max(0,Number(b.turn)||0)*10)%rotating.length);for(let i=0;i<Math.min(3-batch.length,3,rotating.length);i++)add(rotating[(offset+i)%rotating.length]);}
+ if(rotating.length){const offset=((Math.max(0,Number(b.turn)||0)*10)%rotating.length);for(let i=0;i<Math.min(5-batch.length,5,rotating.length);i++)add(rotating[(offset+i)%rotating.length]);}
  return {
   date:clean(b.date,40),startDate:clean(b.startDate,40),endDate:clean(b.endDate,40),elapsedWeeks:Math.max(1,Math.min(520,Number(b.elapsedWeeks)||1)),
   playerOrder:clean(b.playerOrder,6000),year:Number(b.year)||null,scenario:clean(b.scenario,100),turn:Number(b.turn)||0,
@@ -116,7 +116,7 @@ function compactWorld(b){
 
 const worldSystem=`Ты — автономный симулятор альтернативной истории World Chronicle. Просчитай весь указанный интервал целиком, учитывая дату, сценарий, географию, ресурсы, соседей, войны, двусторонние дипломатические отношения, состав дивизий игрока, их размещение, занятые регионы, текущие линии фронта и сопредельные участки, договоры, отношения, предыдущие доклады и приказ игрока. Сохраняй непрерывность и причинно-следственные связи. Выполни приказ игрока реалистично: не превращай длительные реформы в мгновенный успех; опиши препятствия и частичные результаты. Если приказ пуст, опиши естественное развитие страны.
 
-В countries перечислены до 3 государств для подробного обновления в этом ходу. Другие государства учитывай в общей мировой картине и событиях, но не создавай для них отдельные countryReports сейчас. Состав государств меняется от хода к ходу, чтобы со временем обновлялись все страны. Важные государства и участники войн/дипломатии имеют приоритет.
+В countries перечислены до 5 государств для подробного обновления в этом ходу. Другие государства учитывай в общей мировой картине и событиях, но не создавай для них отдельные countryReports сейчас. Состав государств меняется от хода к ходу, чтобы со временем обновлялись все страны. Важные государства и участники войн/дипломатии имеют приоритет.
 
 ПУБЛИЧНОСТЬ: сообщай только известные обществу и иностранным наблюдателям факты — опубликованные решения, парламент, заявления, протесты, выборы, визиты, ноты, подписанные договоры, открытые мобилизационные меры, учения, видимые передвижения войск и официальные операции. Не раскрывай закрытые переговоры, планы разведки, агентурные сведения, тайные операции, секретные протоколы и скрытые намерения.
 
@@ -160,7 +160,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
   if(!world.player?.id)throw Object.assign(new Error('В запросе отсутствует страна игрока.'),{status:400});
   const allowed=new Set((world.allCountryIds||world.countries.map(c=>c.id)).filter(id=>id&&id!==world.player.id));
   const {allCountryIds,...modelWorld}=world;
-  let prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 3 выбранных государства; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
+  let prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 5 выбранных государств; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
   promptChars=prompt.length;
   const multiplayerOrders=(Array.isArray(b.multiplayerOrders)?b.multiplayerOrders:[]).slice(0,20).map(p=>({name:clean(p.name,24),countryId:clean(p.countryId,90),order:clean(p.order,4000)})).filter(p=>p.order);if(multiplayerOrders.length)prompt+='\n\nСЕТЕВЫЕ ПРИКАЗЫ УЧАСТНИКОВ (каждый приказ относится только к указанной стране; не смешивай государства и не приписывай их действия стране ведущего):\n'+JSON.stringify(multiplayerOrders);
   const diplomaticContext=b.diplomaticContext&&typeof b.diplomaticContext==='object'?{messages:(b.diplomaticContext.messages||[]).slice(-20).map(m=>({fromCountryId:clean(m.fromCountryId,90),toCountryId:clean(m.toCountryId,90),message:clean(m.message,1000)})),proposals:(b.diplomaticContext.proposals||[]).slice(-20).map(x=>({fromCountryId:clean(x.fromCountryId,90),toCountryId:clean(x.toCountryId,90),type:clean(x.type,80),title:clean(x.title,140),message:clean(x.message,1200),status:clean(x.status,30),response:clean(x.response,1000)}))}:null;if(diplomaticContext&&(diplomaticContext.messages.length||diplomaticContext.proposals.length))prompt+='\n\nДИПЛОМАТИЧЕСКАЯ ПЕРЕПИСКА И СОГЛАСОВАННЫЕ ПРЕДЛОЖЕНИЯ ИГРОКОВ: учитывай контекст и реальные формулировки; не считай предложение подписанным до статуса accepted; не игнорируй отказ или встречные условия. Переписка конфиденциальна: не публикуй её текст и не раскрывай содержание третьим странам; публично отражай только официально объявленные итоги, например факт принятого договора. Если ИИ-государство инициирует публичное дипломатическое действие в отношении страны игрока, отрази его в actions с targetCountryId страны игрока.\n'+JSON.stringify(diplomaticContext);
