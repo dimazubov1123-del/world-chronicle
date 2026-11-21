@@ -1,6 +1,6 @@
 /* WORLD CHRONICLE — playable browser strategy prototype */
 const SAVE_KEY='worldChronicleSave_v2';
-const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:true,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],geoLayer:null};
+const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:false,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],geoLayer:null};
 const countries={
 'Russia':{name:'Российская Федерация',capital:'Москва',flag:'🇷🇺',population:'170 млн',economy:'Сильная',stability:72,military:'Высокие'},
 'United States of America':{name:'Соединённые Штаты',capital:'Вашингтон',flag:'🇺🇸',population:'330 млн',economy:'Крупнейшая',stability:81,military:'Очень высокие'},
@@ -40,7 +40,7 @@ const RU_COUNTRY_NAMES={RU:'Россия',US:'США',GB:'Великобрита
 const ruDisplayNames=typeof Intl!=='undefined'&&Intl.DisplayNames?new Intl.DisplayNames(['ru'],{type:'region'}):null;
 function getCountryInfo(feature){
  const p=feature.properties||{},code=String(p.ISO_A2||p.ISO_A2_EH||p.iso_a2||'').toUpperCase(),original=p.ADMIN||p.admin||p.name||p.NAME||'Государство';
- let name=RU_COUNTRY_NAMES[code];if(!name&&/^[A-Z]{2}$/.test(code)&&ruDisplayNames){try{name=ruDisplayNames.of(code)}catch(e){}}
+ let name=RU_COUNTRY_NAMES[code]||p.NAME_RU;if(!name&&/^[A-Z]{2}$/.test(code)&&ruDisplayNames){try{name=ruDisplayNames.of(code)}catch(e){}}
  if(!name||name===code)name=original;
  let flag='🏳️';if(/^[A-Z]{2}$/.test(code)&&code!=='-99')flag=Array.from(code).map(ch=>String.fromCodePoint(127397+ch.charCodeAt(0))).join('');if(code==='XK')flag='🇽🇰';
  return{id:original,name,flag,code};
@@ -82,7 +82,7 @@ function loadRegions(){
   .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
 }
 if(window.L){
- map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxZoom:8,preferCanvas:true,zoomSnap:1,zoomDelta:1,wheelDebounceTime:110,wheelPxPerZoomLevel:140,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false,renderer:canvasRenderer}).setView([24,12],2);
+ map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxZoom:8,preferCanvas:true,zoomSnap:1,zoomDelta:1,wheelDebounceTime:110,wheelPxPerZoomLevel:140,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false}).setView([24,12],2);
  canvasRenderer=L.canvas({padding:.35});
  map.createPane('regionsPane');map.getPane('regionsPane').style.zIndex=420;map.createPane('citiesPane');map.getPane('citiesPane').style.zIndex=460;
  regionLayer=L.geoJSON(null,{pane:'regionsPane',renderer:canvasRenderer,style:{color:'#f4dfb4',weight:.65,opacity:.85,fillColor:'#f4dfb4',fillOpacity:.035},onEachFeature:(feature,layer)=>{const p=feature.properties||{},name=p.name||p.name_en||p.NAME||'Регион';layer.bindTooltip(name,{sticky:true,className:'wc-region-tooltip'});layer.on('click',()=>{$('map-hint').textContent='Регион: '+name+' · '+(p.admin||p.ADMIN||'')})}}).addTo(map);
@@ -105,7 +105,7 @@ if(window.L){
 function modal(title,html){$('modal-title').textContent=title;$('modal-content').innerHTML=html;$('modal-backdrop').classList.remove('hidden')}function closeModal(){$('modal-backdrop').classList.add('hidden')}
 function save(){const copy={...state,geoLayer:null};localStorage.setItem(SAVE_KEY,JSON.stringify(copy));$('advisor-text').textContent='Кампания сохранена в этом браузере.'}
 function load(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return false;Object.assign(state,s);state.geoLayer=null;selectCountry(state.selected||'Russia');state.events=[];(s.events||[]).slice().reverse().forEach(e=>event(e.category,e.title,e.description));updateUI();return true}catch(e){return false}}
-function resetCampaign(year){Object.assign(state,{year:Number(year),month:0,day:1,turn:1,paused:true,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[]});$('scenario-label').textContent=scenarios[year];$('scenario-select').value=String(year);selectCountry('Russia');updateUI();event('ПОЛИТИКА','Кампания началась','Вы вступили в новую эпоху. Судьба государства теперь зависит от ваших решений.');save()}
+function resetCampaign(year){Object.assign(state,{year:Number(year),month:0,day:1,turn:1,paused:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[]});ensureElection();$('scenario-label').textContent=scenarios[year];$('scenario-select').value=String(year);selectCountry('Russia');updateUI();event('ПОЛИТИКА','Кампания началась','Вы вступили в новую эпоху. Судьба государства теперь зависит от ваших решений.');save()}
 function advanceTurn(){state.turn++;state.day+=7;const days=new Date(state.year,state.month+1,0).getDate();while(state.day>days){state.day-=days;state.month++;if(state.month>11){state.month=0;state.year++}}tickElection();const income=Math.max(1,state.gdp*.055);state.treasury+=income-3-state.wars.length*2;state.stability=Math.max(0,Math.min(100,state.stability+(state.treasury>30?.15:-.45)-(state.wars.length?1.2:0)));state.prestige=Math.max(0,Math.min(100,state.prestige+(state.treaties.length?.1:0)));updateUI();const headlines=['Кабинет министров подвёл итоги недели','Эксперты представили экономический прогноз','В столице состоялось заседание государственного совета','Дипломатические миссии обменялись нотами','Промышленные предприятия расширяют производство'];event(['ПОЛИТИКА','ЭКОНОМИКА','ДИПЛОМАТИЯ'][state.turn%3],headlines[state.turn%headlines.length],'Доход казны за период: ₽ '+fmt(income)+' млрд. Текущая стабильность: '+fmt(state.stability)+'%.');$('advisor-text').textContent=state.treasury<25?'Казна сокращается. Рекомендуется пересмотреть расходы.':state.stability<45?'Общественная стабильность падает. Нужны реформы.':'Государство сохраняет управляемость. Продолжайте укреплять его позиции.';save()}
 function countryPicker(){const keys=Object.keys(countries);modal('Выберите государство','<div class="country-picker">'+keys.map(k=>'<button class="country-option" data-country="'+k+'"><strong>'+countries[k].flag+' '+countries[k].name+'</strong><small>Столица: '+countries[k].capital+'</small></button>').join('')+'</div>');document.querySelectorAll('[data-country]').forEach(b=>b.onclick=()=>{selectCountry(b.dataset.country);closeModal();save()})}
 function actionButton(label,desc,action){return '<button class="game-action" data-game-action="'+action+'"><strong>'+label+'</strong><small>'+desc+'</small><span>→</span></button>'}
@@ -226,7 +226,7 @@ function conductElection(){
 }
 function tickElection(){
  const e=ensureElection();
- if(e.phase==='waiting'&&state.year>=e.nextYear){e.phase='campaign';e.campaignWeeks=8;e.debateDone=false;event('ВЫБОРЫ','Началась предвыборная кампания','До голосования осталось восемь недель.')}
+ if(['waiting','results','government'].includes(e.phase)&&state.year>=e.nextYear){e.phase='campaign';e.campaignWeeks=8;e.debateDone=false;e.results=null;e.government=null;e.promises=[];event('ВЫБОРЫ','Началась предвыборная кампания','До голосования осталось восемь недель.')}
  else if(e.phase==='campaign'){e.campaignWeeks=Math.max(0,e.campaignWeeks-1);if(e.campaignWeeks===0)conductElection()}
 }
 function elections(){
