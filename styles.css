@@ -369,3 +369,25 @@ body.wc-news-open{overflow:hidden}
 @keyframes wc-flag-bob{from{transform:translateY(0) scale(1)}to{transform:translateY(-4px) scale(1.12)}}
 .wc-order-examples button:active{transform:translateY(1px)}
 @media(max-width:720px){.wc-order-input{min-height:104px}.wc-order-examples button{font-size:8px;padding:7px 6px}.wc-order-intro{padding:11px}}
+
+/* Multiplayer lobby and synchronized turn controls */
+.wc-room-participants{display:grid;gap:5px;margin:12px 0}
+.wc-ready,.wc-not-ready{font-size:8px;font-weight:800;letter-spacing:1px;padding:5px 8px;border-radius:3px}
+.wc-ready{color:#9bd5ad;background:#1d4934}.wc-not-ready{color:#d8bd82;background:#493a22}
+.wc-network-status{font-size:8px;font-weight:800;letter-spacing:1px;color:#a9c4d8;border:1px solid #3b536b;background:#15283a;border-radius:4px;padding:7px 9px;white-space:nowrap}
+.wc-network-ready{font-size:8px;font-weight:800;letter-spacing:.8px;color:#f1dfba;border:1px solid #8d754d;background:#2b261d;border-radius:4px;padding:7px 10px;white-space:nowrap}
+.wc-network-ready.is-ready{color:#a8dfb5;border-color:#477a59;background:#183324}
+.wc-network-ready:disabled{opacity:.55;cursor:not-allowed}
+#pax-top-session .wc-network-status[hidden],#pax-top-session .wc-network-ready[hidden]{display:none}
+.wc-menu-form-card select{width:100%;min-height:39px;background:#101b28;border:1px solid #33465b;color:#e7edf3;border-radius:4px;padding:8px;margin:5px 0 12px}
+.wc-menu-form-card input{text-transform:none}
+.wc-menu-form-card #wc-net-code{text-transform:uppercase;letter-spacing:3px;font-weight:800}
+.wc-menu-form-card button,.wc-menu-list-card button{cursor:pointer}
+.wc-room-row button{background:#24364a;border:1px solid #455d74;color:#e7edf3;border-radius:4px;padding:7px 10px;font-size:9px}
+.wc-room-row button:hover{border-color:#c0a16b;color:#f4dfb5}
+.wc-multiplayer-active .pax-top-session{gap:8px}
+@media(max-width:760px){
+ .wc-network-status{font-size:7px;padding:6px}
+ .wc-network-ready{font-size:7px;padding:6px}
+ #wc-network-status{max-width:100px;overflow:hidden;text-overflow:ellipsis}
+}
