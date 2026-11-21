@@ -120,6 +120,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
   const {allCountryIds,...modelWorld}=world;
   let prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 20 выбранных государств; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
   const multiplayerOrders=(Array.isArray(b.multiplayerOrders)?b.multiplayerOrders:[]).slice(0,20).map(p=>({name:clean(p.name,24),countryId:clean(p.countryId,90),order:clean(p.order,4000)})).filter(p=>p.order);if(multiplayerOrders.length)prompt+='\n\nСЕТЕВЫЕ ПРИКАЗЫ УЧАСТНИКОВ (каждый приказ относится только к указанной стране; не смешивай государства и не приписывай их действия стране ведущего):\n'+JSON.stringify(multiplayerOrders);
+  const diplomaticContext=b.diplomaticContext&&typeof b.diplomaticContext==='object'?{messages:(b.diplomaticContext.messages||[]).slice(-20).map(m=>({fromCountryId:clean(m.fromCountryId,90),toCountryId:clean(m.toCountryId,90),message:clean(m.message,1000)})),proposals:(b.diplomaticContext.proposals||[]).slice(-20).map(x=>({fromCountryId:clean(x.fromCountryId,90),toCountryId:clean(x.toCountryId,90),type:clean(x.type,80),title:clean(x.title,140),message:clean(x.message,1200),status:clean(x.status,30),response:clean(x.response,1000)}))}:null;if(diplomaticContext&&(diplomaticContext.messages.length||diplomaticContext.proposals.length))prompt+='\n\nДИПЛОМАТИЧЕСКАЯ ПЕРЕПИСКА И СОГЛАСОВАННЫЕ ПРЕДЛОЖЕНИЯ ИГРОКОВ: учитывай контекст и реальные формулировки; не считай предложение подписанным до статуса accepted; не игнорируй отказ или встречные условия. Если ИИ-государство инициирует публичное дипломатическое действие в отношении страны игрока, отрази его в actions с targetCountryId страны игрока.\n'+JSON.stringify(diplomaticContext);
   const result=parse(await ask(worldSystem,prompt,3000));
   result.playerReport=clean(result.playerReport,9000);
   result.countryReports=(Array.isArray(result.countryReports)?result.countryReports:[]).filter(r=>r&&allowed.has(r.countryId)).map(r=>{
@@ -286,6 +287,14 @@ app.post('/api/rooms/:code/social/ai-action',(req,res)=>{
  const body=type==='relation'?actor+' предприняло дипломатический шаг в отношении вашего государства. Изучите ситуацию и при необходимости ответьте через дипломатию.':actor+' предприняло военное действие в отношении вашего государства. Проверьте хронику и оборонную обстановку.';
  notifyPlayer(room,recipient.id,{type:'ai_action',title,body,fromCountryId,actionType:type,delta:Number(a.delta)||0});
  room.revision++;res.status(201).json({ok:true});
+});
+
+app.post('/api/rooms/:code/social/apply',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
+ if(!p.host)return res.status(403).json({error:'Только ведущий применяет дипломатические соглашения к общему состоянию.'});
+ const ready=(room.proposals||[]).filter(x=>x.status==='accepted'&&!x.applied);
+ ready.forEach(x=>{x.applied=true;x.appliedAt=new Date().toISOString()});
+ res.json({proposals:ready});
 });
 app.post('/api/rooms/:code/social/read',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
