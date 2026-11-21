@@ -220,6 +220,17 @@
   };
   requestAnimationFrame(tick);
  }
+ function animateBattle(feature,won){
+  if(!window.L||!map||!feature)return;
+  const point=center(feature),ring=L.circleMarker(point,{pane:'unitsPane',radius:7,color:won?'#f4d58d':'#e56b61',weight:3,opacity:.95,fillColor:won?'#e5b85e':'#b83f3a',fillOpacity:.22,interactive:false}).addTo(map);
+  const started=performance.now(),duration=1150;
+  const tick=now=>{
+   const t=Math.min(1,(now-started)/duration),wave=Math.sin(t*Math.PI);
+   ring.setRadius(7+wave*25);ring.setStyle({opacity:1-t,fillOpacity:.28*(1-t),weight:3+wave*2});
+   if(t<1)requestAnimationFrame(tick);else map.removeLayer(ring);
+  };
+  requestAnimationFrame(tick);
+ }
  function friendlyPath(start,target){
   const startKey=fkey(start),targetKey=fkey(target);if(startKey===targetKey)return [];
   const queue=[start],previous=new Map([[startKey,null]]),nodes=new Map([[startKey,start]]);
@@ -288,7 +299,7 @@
    event('ВОЕННОЕ ДЕЛО','Наступление остановлено: '+regionNameValue,'Соединение '+unit.name+' не смогло занять регион. Оборона противника удержала позиции, атакующая часть понесла потери.',{importance:'major',location:regionNameValue,background:'Вооружённые силы предприняли попытку наступления на сопредельный участок обороны противника.',development:'Обороняющиеся войска удержали рубежи. Атакующее соединение понесло потери и было вынуждено отойти на исходные позиции.',consequences:'Регион остаётся под контролем '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'. Боеспособность соединения снижена.',reaction:'Операция отражена в военной хронике.'});
    if(unit.strength===0){state.armies=armies().filter(x=>x.id!==unit.id);selectedUnitId=null;event('ВОЕННОЕ ДЕЛО','Соединение утратило боеспособность','Остатки личного состава выведены из строя, соединение больше не может участвовать в операциях.');}
   }
-  if(won)animateUnit(unit,previous,unit.position,feature,true);else syncUnits();updateUI();save();closeModal();if(regionLayer)regionLayer.setStyle(styleRegion);return won;
+  if(won){animateBattle(feature,true);animateUnit(unit,previous,unit.position,feature,true)}else{syncUnits();animateBattle(feature,false)}updateUI();save();closeModal();if(regionLayer)regionLayer.setStyle(styleRegion);return won;
  }
  function styleRegion(feature){
   const p=feature.properties||{},adminId=admin(p),occ=occupied()[fkey(feature)],ctrl=occ?.controller||adminId;
