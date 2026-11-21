@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 const app=express(),PORT=process.env.PORT||3000,ORIGIN=(process.env.CORS_ORIGIN||'').split(',').map(x=>x.trim()).filter(Boolean),MODEL=process.env.OPENROUTER_MODEL||'openrouter/free';
 app.use(cors({origin(origin,cb){if(!origin||!ORIGIN.length||ORIGIN.includes(origin))return cb(null,true);cb(new Error('Origin not allowed'));}}));
 app.use(express.json({limit:'180kb'}));
+app.use('/api/ai',rateLimit({windowMs:24*60*60*1000,limit:40,standardHeaders:true,legacyHeaders:false,message:{error:'Дневной лимит AI-запросов World Chronicle исчерпан. Попробуйте завтра.'}}));
 app.get('/health',(_req,res)=>res.json({ok:true,service:'world-chronicle-ai',configured:Boolean(process.env.OPENROUTER_API_KEY),model:MODEL}));
 const clean=(v,n=4000)=>String(v??'').slice(0,n);
 async function ask(system,user,maxTokens=900){
