@@ -274,17 +274,17 @@ app.post('/api/rooms/:code/social/ai-action',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
  if(!p.host)return res.status(403).json({error:'Только ведущий фиксирует результаты мирового ИИ.'});
  const a=b.action||{},fromCountryId=clean(a.countryId,90).trim(),targetCountryId=clean(a.targetCountryId,90).trim(),type=clean(a.type,30);
- if(!fromCountryId||targetCountryId!==p.countryId||!['relation','treaty','war'].includes(type))return res.status(400).json({error:'Некорректное дипломатическое действие ИИ.'});
+ const recipient=room.players.find(x=>x.countryId===targetCountryId);if(!fromCountryId||!recipient||!['relation','treaty','war'].includes(type))return res.status(400).json({error:'Некорректное дипломатическое действие ИИ.'});
  const actor=clean(b.countryName||fromCountryId,120);
  if(type==='treaty'){
-  const proposal={id:socialId(),fromPlayerId:null,fromPlayerName:'Правительство '+actor,fromCountryId,toPlayerId:p.id,toCountryId:p.countryId,type:'treaty',title:'Предложение о международном договоре',message:clean(b.message||('Правительство '+actor+' предлагает начать оформление двустороннего договора. Уточните условия в дипломатическом канале.'),1800),status:'pending',response:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),initiatedByAI:true};
+  const proposal={id:socialId(),fromPlayerId:null,fromPlayerName:'Правительство '+actor,fromCountryId,toPlayerId:recipient.id,toCountryId:recipient.countryId,type:'treaty',title:'Предложение о международном договоре',message:clean(b.message||('Правительство '+actor+' предлагает начать оформление двустороннего договора. Уточните условия в дипломатическом канале.'),1800),status:'pending',response:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),initiatedByAI:true};
   room.proposals=room.proposals||[];room.proposals.push(proposal);room.proposals=room.proposals.slice(-150);
-  notifyPlayer(room,p.id,{type:'ai_proposal',title:'ИИ направил дипломатическое предложение',body:actor+' предлагает заключить договор. Откройте дипломатию, чтобы принять решение.',proposalId:proposal.id,fromCountryId});
+  notifyPlayer(room,recipient.id,{type:'ai_proposal',title:'ИИ направил дипломатическое предложение',body:actor+' предлагает заключить договор. Откройте дипломатию, чтобы принять решение.',proposalId:proposal.id,fromCountryId});
   room.revision++;return res.status(201).json({ok:true,proposal});
  }
  const title=type==='relation'?'Дипломатическая инициатива ИИ':'Военно-политическое действие ИИ';
  const body=type==='relation'?actor+' предприняло дипломатический шаг в отношении вашего государства. Изучите ситуацию и при необходимости ответьте через дипломатию.':actor+' предприняло военное действие в отношении вашего государства. Проверьте хронику и оборонную обстановку.';
- notifyPlayer(room,p.id,{type:'ai_action',title,body,fromCountryId,actionType:type,delta:Number(a.delta)||0});
+ notifyPlayer(room,recipient.id,{type:'ai_action',title,body,fromCountryId,actionType:type,delta:Number(a.delta)||0});
  room.revision++;res.status(201).json({ok:true});
 });
 app.post('/api/rooms/:code/social/read',(req,res)=>{
