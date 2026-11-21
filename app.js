@@ -223,9 +223,20 @@ function refreshRegions(){
 function loadRegions(){
  if(!state.regionsVisible||regionData||regionsLoading)return;regionsLoading=true;
  $('map-hint').textContent='Загружаются административные границы регионов…';
- fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',{cache:'force-cache'})
+ fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson',{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('Regions unavailable');return r.json()})
-  .then(data=>{regionData=data;for(const f of data.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}regionsLoading=false;refreshRegions();$('map-hint').textContent='Административные регионы загружены для выбранной страны.'})
+  .then(async data=>{
+    const supplements=[
+     ['Andorra','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/AND/ADM1/geoBoundaries-AND-ADM1_simplified.geojson'],
+     ['Liechtenstein','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LIE/ADM1/geoBoundaries-LIE-ADM1_simplified.geojson'],
+     ['Luxembourg','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LUX/ADM1/geoBoundaries-LUX-ADM1_simplified.geojson'],
+     ['San Marino','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/SMR/ADM1/geoBoundaries-SMR-ADM1_simplified.geojson'],
+     ['Malta','https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/MLT/ADM1/geoBoundaries-MLT-ADM1_simplified.geojson']
+    ];
+    const extra=await Promise.all(supplements.map(async ([admin,url])=>{try{const r=await fetch(url,{cache:'force-cache'});if(!r.ok)return [];const g=await r.json();return (g.features||[]).map(f=>({...f,properties:{...(f.properties||{}),admin,name:(f.properties||{}).shapeName||(f.properties||{}).name||admin,geonunit:admin}}))}catch(e){return []}}));
+    const replaced=new Set(supplements.map(x=>x[0]));
+    data.features=(data.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||''))).concat(...extra);
+    regionData=data;window.__wcRegionData=data;for(const f of data.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}regionsLoading=false;refreshRegions();$('map-hint').textContent='Подробные административные регионы загружены по всему миру.'})
   .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
 }
 if(window.L){
@@ -441,7 +452,7 @@ $('regions-toggle').onclick=()=>{state.regionsVisible=!state.regionsVisible;$('r
 $('cities-toggle').onclick=()=>{state.citiesVisible=!state.citiesVisible;$('cities-toggle').classList.toggle('active',state.citiesVisible);updateCityVisibility()};
 $('political-view').onclick=()=>{if(state.geoLayer)state.geoLayer.setStyle(styleFeature);event('ПОЛИТИКА','Политическая карта активна','Территории государств окрашены по политической принадлежности.')};
 $('help-btn').onclick=()=>modal('World Chronicle — справка','<p>Вы руководите государством в альтернативной исторической песочнице. Один ход равен одной неделе. Решения меняют казну, экономику, стабильность, престиж и военную мощь.</p><p>Кампания автоматически сохраняется в локальном хранилище этого браузера. Используйте разделы слева для управления страной.</p>');
-$('sound-toggle').onclick=()=>setSoundEnabled(!soundEnabled);setSoundEnabled(soundEnabled);$('modal-close').onclick=closeModal;$('event-continue').onclick=closeChronicleEvent;$('event-overlay').onclick=e=>{if(e.target===$('event-overlay'))closeChronicleEvent()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChronicleEvent()});$('modal-backdrop').onclick=e=>{if(e.target===$('modal-backdrop'))closeModal()};
+$('sound-toggle').onclick=()=>setSoundEnabled(!soundEnabled);setSoundEnabled(soundEnabled);$('modal-close').onclick=closeModal;$('wc-news-close').onclick=closeNewsDrawer;$('wc-news-scrim').onclick=closeNewsDrawer;$('wc-news-period').onchange=e=>renderNewsDrawer(e.target.value);$('wc-news-show-all').onclick=()=>{const s=$('wc-news-period');if(s){s.value='all';renderNewsDrawer('all')}};$('wc-front-toggle').onclick=()=>window.WC_WAR?.toggleFronts?.();document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNewsDrawer()});$('event-continue').onclick=closeChronicleEvent;$('event-overlay').onclick=e=>{if(e.target===$('event-overlay'))closeChronicleEvent()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChronicleEvent()});$('modal-backdrop').onclick=e=>{if(e.target===$('modal-backdrop'))closeModal()};
 document.addEventListener('click',e=>{if(e.target.closest('button')&&!e.target.closest('#sound-toggle')&&!e.target.closest('#next-turn'))playSound('click');const nav=e.target.closest('.nav-item');if(nav){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));nav.classList.add('active');const pages={overview:closeModal,diplomacy,economy,military,politics,elections};if(pages[nav.dataset.action])pages[nav.dataset.action]()}const a=e.target.closest('.action-card');if(a){if(a.dataset.action==='decree')decree();if(a.dataset.action==='speech')speech()}});
 load();state.regionsVisible=true;state.armies=state.armies||[];state.occupiedRegions=state.occupiedRegions||{};ensureElection();if(state.regionsVisible){$('regions-toggle').classList.add('active');loadRegions()}if(!state.events.length)event('ПОЛИТИКА','Кампания готова к началу','Выберите направление развития государства и сделайте первый ход.');selectCountry(state.selected||'Russia');updateUI();
 
