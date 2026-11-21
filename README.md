@@ -31,3 +31,11 @@ The map uses Leaflet and public map tiles / country boundaries loaded from exter
 
 ## License
 Prototype source code is provided for this project. Third-party map libraries, tiles and datasets retain their respective licenses and attribution requirements.
+
+## AI backend (optional)
+
+The browser client never receives provider credentials. Deploy the Node service separately and set server variables: `OPENROUTER_API_KEY` (secret), optional `OPENROUTER_MODEL` (defaults to `openrouter/free`), optional `CORS_ORIGIN` (comma-separated allowed origins), and optional `SITE_URL`.
+
+Set `window.WC_API_BASE = 'https://YOUR-SERVER-DOMAIN'` before `app.js` in `index.html`. The server exposes `/health` and `/api/ai/{world-turn,diplomacy,advisor,order}`.
+
+OpenRouter's free model variants currently have a 50-request/day limit on a free account. This is suitable for a prototype, not unlimited simulation. If the quota is exhausted or the provider is unavailable, the deterministic game continues. Never put API keys in browser files or GitHub.
