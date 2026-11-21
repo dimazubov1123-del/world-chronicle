@@ -1,6 +1,6 @@
 /* WORLD CHRONICLE — playable browser strategy prototype */
 const SAVE_KEY='worldChronicleSave_v2';
-const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',labels:true,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],geoLayer:null};
+const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:true,citiesVisible:true,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],geoLayer:null};
 const countries={
 'Russia':{name:'Российская Федерация',capital:'Москва',flag:'🇷🇺',population:'170 млн',economy:'Сильная',stability:72,military:'Высокие'},
 'United States of America':{name:'Соединённые Штаты',capital:'Вашингтон',flag:'🇺🇸',population:'330 млн',economy:'Крупнейшая',stability:81,military:'Очень высокие'},
@@ -18,72 +18,87 @@ const $=id=>document.getElementById(id),fmt=n=>Math.round(n).toLocaleString('ru-
 function dateText(){return state.day+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][state.month]+' '+state.year}
 function updateUI(){$('date-label').textContent=dateText();$('turn-label').textContent='ХОД '+String(state.turn).padStart(3,'0');$('treasury-top').textContent='₽ '+fmt(state.treasury)+' млрд';$('prestige-top').textContent=fmt(state.prestige);$('stability').textContent=fmt(state.stability)+'%';$('economy').textContent='Индекс '+fmt(state.gdp);$('military').textContent=fmt(state.army)+' тыс.'}
 function event(category,title,description){state.events.unshift({category,title,description,date:dateText()});state.events=state.events.slice(0,12);const list=$('news-list');list.innerHTML='';state.events.slice(0,7).forEach(e=>{const a=document.createElement('article');a.className='news-item';const tag=e.category==='ДИПЛОМАТИЯ'?'gold':e.category==='ЭКОНОМИКА'?'blue':e.category==='ВОЕННОЕ ДЕЛО'?'red':'gold';a.innerHTML='<div class="news-meta"><span class="news-tag '+tag+'">'+e.category+'</span><time>'+e.date+'</time></div><h3></h3><p></p>';a.querySelector('h3').textContent=e.title;a.querySelector('p').textContent=e.description;list.append(a)});$('event-count').textContent=String(state.events.length).padStart(2,'0')}
-function selectCountry(id,feature,displayName,displayFlag){const base=countries[id]||{name:displayName||id,capital:'Не определена',flag:displayFlag||'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};const c={...base,name:displayName||base.name,flag:displayFlag||base.flag};state.selected=id;$('country-name').textContent=c.name;$('country-capital').textContent='Столица: '+c.capital;$('country-flag').textContent=c.flag;$('population').textContent=c.population;$('economy').textContent=c.economy;$('stability').textContent=c.stability+'%';$('military').textContent=c.military;$('map-hint').textContent='Выбрано: '+c.name;if(state.geoLayer)state.geoLayer.setStyle(styleFeature);if(feature&&window.map){const item=countryMeta.find(x=>x.info.id===id);const b=item?.bounds||(L.geoJSON(feature).getBounds());if(b.isValid())map.fitBounds(b,{padding:[45,45],maxZoom:5})}if(typeof window.refreshMapLabels==='function')window.refreshMapLabels()}
-function styleFeature(f){const name=f.properties.ADMIN||f.properties.name||'';return{color:state.selected===name?'#e2c17d':'#63758a',weight:state.selected===name?1.7:.65,opacity:.9,fillColor:state.selected===name?'#b99a60':'#26394e',fillOpacity:state.selected===name?.78:.48}}
+function selectCountry(id,feature,displayName,displayFlag){
+ const base=countries[id]||{name:displayName||id,capital:'Не определена',flag:displayFlag||'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};
+ const c={...base,name:displayName||base.name,flag:displayFlag||base.flag};
+ state.selected=id;
+ $('country-name').textContent=c.name;$('country-capital').textContent='Столица: '+c.capital;$('country-flag').textContent=c.flag;
+ $('population').textContent=c.population;$('economy').textContent=c.economy;$('stability').textContent=c.stability+'%';$('military').textContent=c.military;
+ $('map-hint').textContent='Выбрано государство: '+c.name;
+ if(state.geoLayer)state.geoLayer.setStyle(styleFeature);
+ refreshRegions();
+ if(feature&&map){const item=countryMeta.find(x=>x.info.id===id);const b=item?.bounds||(L.geoJSON(feature).getBounds());if(b.isValid())map.fitBounds(b,{padding:[45,45],maxZoom:5})}
+}
+function styleFeature(f){
+ const name=f.properties.ADMIN||f.properties.admin||f.properties.name||'';
+ const hue=(Array.from(name).reduce((n,ch)=>((n*31)+ch.charCodeAt(0))>>>0,17)%360);
+ const fill='hsl('+hue+' 39% 43%)';
+ const selected=state.selected===name;
+ return{color:selected?'#f2d18e':'#172536',weight:selected?2.1:.8,opacity:1,fillColor:selected?'#c49b53':fill,fillOpacity:selected?.96:.91};
+}
 const RU_COUNTRY_NAMES={RU:'Россия',US:'США',GB:'Великобритания',KR:'Южная Корея',KP:'КНДР',CZ:'Чехия',TR:'Турция',IR:'Иран',SY:'Сирия',TW:'Тайвань',CD:'ДР Конго',CG:'Республика Конго',CI:'Кот-д’Ивуар',BO:'Боливия',VE:'Венесуэла',TZ:'Танзания',MD:'Молдова',PS:'Палестина',VA:'Ватикан',XK:'Косово'};
 const ruDisplayNames=typeof Intl!=='undefined'&&Intl.DisplayNames?new Intl.DisplayNames(['ru'],{type:'region'}):null;
 function getCountryInfo(feature){
- const p=feature.properties||{},code=String(p.ISO_A2||p.ISO_A2_EH||p.iso_a2||'').toUpperCase();
- const original=p.ADMIN||p.name||p.NAME||'Государство';
- let name=RU_COUNTRY_NAMES[code];
- if(!name&&/^[A-Z]{2}$/.test(code)&&ruDisplayNames){try{name=ruDisplayNames.of(code)}catch(e){}}
+ const p=feature.properties||{},code=String(p.ISO_A2||p.ISO_A2_EH||p.iso_a2||'').toUpperCase(),original=p.ADMIN||p.admin||p.name||p.NAME||'Государство';
+ let name=RU_COUNTRY_NAMES[code];if(!name&&/^[A-Z]{2}$/.test(code)&&ruDisplayNames){try{name=ruDisplayNames.of(code)}catch(e){}}
  if(!name||name===code)name=original;
- let flag='🏳️';
- if(/^[A-Z]{2}$/.test(code)&&code!=='-99')flag=Array.from(code).map(ch=>String.fromCodePoint(127397+ch.charCodeAt(0))).join('');
- if(code==='XK')flag='🇽🇰';
+ let flag='🏳️';if(/^[A-Z]{2}$/.test(code)&&code!=='-99')flag=Array.from(code).map(ch=>String.fromCodePoint(127397+ch.charCodeAt(0))).join('');if(code==='XK')flag='🇽🇰';
  return{id:original,name,flag,code};
 }
-function escapeMapText(value){return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-let map=null,labelLayer=null,canvasRenderer=null,countryMeta=[],labelMarkers=new Map();
+let map=null,canvasRenderer=null,countryMeta=[],regionData=null,regionLayer=null,cityLayer=null,regionsLoading=false;
+const CITIES=[
+ ['Москва',55.7558,37.6173,'Russia'],['Санкт-Петербург',59.9343,30.3351,'Russia'],['Калининград',54.7104,20.4522,'Russia'],['Казань',55.7961,49.1064,'Russia'],['Екатеринбург',56.8389,60.6057,'Russia'],['Новосибирск',55.0084,82.9357,'Russia'],['Владивосток',43.1155,131.8855,'Russia'],
+ ['Вашингтон',38.9072,-77.0369,'United States of America'],['Нью-Йорк',40.7128,-74.006,'United States of America'],['Лос-Анджелес',34.0522,-118.2437,'United States of America'],['Оттава',45.4215,-75.6972,'Canada'],['Мехико',19.4326,-99.1332,'Mexico'],
+ ['Лондон',51.5072,-.1276,'United Kingdom'],['Париж',48.8566,2.3522,'France'],['Берлин',52.52,13.405,'Germany'],['Мадрид',40.4168,-3.7038,'Spain'],['Рим',41.9028,12.4964,'Italy'],['Варшава',52.2297,21.0122,'Poland'],['Киев',50.4501,30.5234,'Ukraine'],['Стокгольм',59.3293,18.0686,'Sweden'],['Анкара',39.9334,32.8597,'Turkey'],
+ ['Пекин',39.9042,116.4074,'China'],['Шанхай',31.2304,121.4737,'China'],['Токио',35.6762,139.6503,'Japan'],['Сеул',37.5665,126.978,'South Korea'],['Пхеньян',39.0392,125.7625,'North Korea'],['Нью-Дели',28.6139,77.209,'India'],['Исламабад',33.6844,73.0479,'Pakistan'],['Бангкок',13.7563,100.5018,'Thailand'],['Джакарта',-6.2088,106.8456,'Indonesia'],
+ ['Каир',30.0444,31.2357,'Egypt'],['Аддис-Абеба',8.9806,38.7578,'Ethiopia'],['Найроби',-1.2921,36.8219,'Kenya'],['Претория',-25.7479,28.2293,'South Africa'],['Бразилиа',-15.7939,-47.8828,'Brazil'],['Буэнос-Айрес',-34.6037,-58.3816,'Argentina'],['Канберра',-35.2809,149.1300,'Australia']
+];
+function refreshCities(){
+ if(!map||!cityLayer)return;cityLayer.clearLayers();
+ if(!state.citiesVisible||map.getZoom()<3.4)return;
+ for(const [name,lat,lng,country] of CITIES){
+  const m=L.circleMarker([lat,lng],{radius:map.getZoom()>5?4:3,weight:1,color:'#f5dfad',fillColor:'#d7b56d',fillOpacity:.95,renderer:canvasRenderer});
+  m.bindTooltip(name,{permanent:map.getZoom()>=5.2,direction:'top',className:'wc-city-tooltip',offset:[0,-5]});
+  m.on('click',()=>{$('map-hint').textContent='Город: '+name+' · '+country.replace('United States of America','США').replace('United Kingdom','Великобритания');map.setView([lat,lng],Math.max(5,map.getZoom()))});
+  cityLayer.addLayer(m);
+ }
+}
+function refreshRegions(){
+ if(!map||!regionLayer)return;
+ regionLayer.clearLayers();
+ if(!state.regionsVisible||!regionData)return;
+ const chosen=state.selected;
+ const features=regionData.features.filter(f=>{const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit;return admin===chosen});
+ if(!features.length)return;
+ regionLayer.addData(features);
+}
+function loadRegions(){
+ if(regionData||regionsLoading)return;regionsLoading=true;
+ $('map-hint').textContent='Загружаются административные границы регионов…';
+ fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',{cache:'force-cache'})
+  .then(r=>{if(!r.ok)throw Error('Regions unavailable');return r.json()})
+  .then(data=>{regionData=data;regionsLoading=false;refreshRegions();$('map-hint').textContent='Регионы отображаются для выбранной страны. Приблизьте карту, чтобы увидеть города.'})
+  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
+}
 if(window.L){
  map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxZoom:8,preferCanvas:true,zoomSnap:.5,zoomDelta:.5,wheelDebounceTime:80,wheelPxPerZoomLevel:100,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false}).setView([24,12],2);
  canvasRenderer=L.canvas({padding:.35});
- L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
-  subdomains:'abcd',maxZoom:8,attribution:'© OpenStreetMap © CARTO',updateWhenIdle:true,updateWhenZooming:false,keepBuffer:1,detectRetina:false
- }).addTo(map);
- labelLayer=L.layerGroup().addTo(map);
- function refreshMapLabels(){
-  if(!map||!state.labels||!labelLayer)return;
-  const zoom=map.getZoom(),view=map.getBounds(),needed=new Set();
-  for(const item of countryMeta){
-   if(!view.intersects(item.bounds))continue;
-   const width=item.bounds.getEast()-item.bounds.getWest(),height=item.bounds.getNorth()-item.bounds.getSouth(),area=width*height;
-   if(zoom<2.8&&area<34)continue;
-   if(zoom<3.5&&area<4.5)continue;
-   const compact=zoom<3.5&&area<13;
-   const key=item.info.id;needed.add(key);
-   const selected=state.selected===key;
-   const html='<span class="flag">'+item.info.flag+'</span>'+(compact?'':'<span class="name">'+escapeMapText(item.info.name)+'</span>');
-   const className='wc-map-label'+(compact?' compact':'')+(selected?' selected':'');
-   let marker=labelMarkers.get(key);
-   if(!marker){
-    marker=L.marker(item.center,{interactive:false,keyboard:false,zIndexOffset:selected?900:400,icon:L.divIcon({className:'wc-country-marker',html:'<span class="'+className+'">'+html+'</span>',iconSize:[0,0],iconAnchor:[0,0]})});
-    labelMarkers.set(key,marker);marker.addTo(labelLayer);
-   }else{
-    const nextIcon=L.divIcon({className:'wc-country-marker',html:'<span class="'+className+'">'+html+'</span>',iconSize:[0,0],iconAnchor:[0,0]});
-    marker.setIcon(nextIcon);marker.setZIndexOffset(selected?900:400);
-    if(!labelLayer.hasLayer(marker))marker.addTo(labelLayer);
-   }
-  }
-  for(const [key,marker] of labelMarkers){if(!needed.has(key)){labelLayer.removeLayer(marker);labelMarkers.delete(key)}}
- }
- window.refreshMapLabels=refreshMapLabels;
- map.on('moveend zoomend',refreshMapLabels);
+ map.createPane('regionsPane');map.getPane('regionsPane').style.zIndex=420;map.createPane('citiesPane');map.getPane('citiesPane').style.zIndex=460;
+ regionLayer=L.geoJSON(null,{pane:'regionsPane',renderer:canvasRenderer,style:{color:'#f4dfb4',weight:.65,opacity:.85,fillColor:'#f4dfb4',fillOpacity:.035},onEachFeature:(feature,layer)=>{const p=feature.properties||{},name=p.name||p.name_en||p.NAME||'Регион';layer.bindTooltip(name,{sticky:true,className:'wc-region-tooltip'});layer.on('click',()=>{$('map-hint').textContent='Регион: '+name+' · '+(p.admin||p.ADMIN||'')})}}).addTo(map);
+ cityLayer=L.layerGroup([], {pane:'citiesPane'}).addTo(map);
+ map.on('moveend zoomend',refreshCities);
+ map.on('zoomend',()=>{if(map.getZoom()>=3.5&&!regionData)loadRegions()});
  fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson',{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('GeoJSON unavailable');return r.json()})
   .then(data=>{
-   state.geoLayer=L.geoJSON(data,{
-    renderer:canvasRenderer,style:styleFeature,smoothFactor:2.4,interactive:true,bubblingMouseEvents:false,
-    onEachFeature:(feature,layer)=>{
-     const info=getCountryInfo(feature),bounds=layer.getBounds();
-     if(bounds&&bounds.isValid())countryMeta.push({info,bounds,center:bounds.getCenter()});
-     layer.on('click',()=>selectCountry(info.id,feature,info.name,info.flag));
-    }
-   }).addTo(map);
-   refreshMapLabels();
-   $('map-hint').textContent='Флаги и названия стран отображаются на карте. Нажмите на страну для подробностей.';
+   state.geoLayer=L.geoJSON(data,{renderer:canvasRenderer,style:styleFeature,smoothFactor:2.4,interactive:true,bubblingMouseEvents:false,onEachFeature:(feature,layer)=>{
+    const info=getCountryInfo(feature),bounds=layer.getBounds();if(bounds&&bounds.isValid())countryMeta.push({info,bounds});
+    layer.on('click',()=>selectCountry(info.id,feature,info.name,info.flag));
+   }}).addTo(map);
+   $('map-hint').textContent='Выберите государство. Цветом обозначены территории стран; регионы и города открываются при приближении.';
+   if(map.getZoom()>=3.5)loadRegions();refreshCities();
   })
-  .catch(()=>$('map-hint').textContent='Не удалось загрузить границы стран — проверьте интернет.');
+  .catch(()=>$('map-hint').textContent='Не удалось загрузить границы государств — проверьте интернет.');
  requestAnimationFrame(()=>map.invalidateSize({pan:false}));
  window.addEventListener('resize',()=>map.invalidateSize({pan:false}),{passive:true});
 }
