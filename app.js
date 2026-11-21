@@ -70,7 +70,8 @@ function openCountryProfile(id,feature,info){
  const pop=Number(p.POP_EST),gdp=Number(p.GDP_MD_EST),region=p.REGION_UN||p.REGION_WB||p.CONTINENT||'';
  const popText=pop>0?(pop>=1e9?(pop/1e9).toFixed(2).replace('.',',')+' млрд':(pop/1e6).toFixed(1).replace('.',',')+' млн'):base.population||'Нет данных';
  const gdpText=gdp>0?'$ '+(gdp/1000).toLocaleString('ru-RU',{maximumFractionDigits:1})+' млрд':base.economy||'Нет данных';
- const capital=base.capital||p.CAPITAL||'Нет данных в сценарии';
+ const CAPITALS={'United States of America':'Вашингтон','Canada':'Оттава','Mexico':'Мехико','Brazil':'Бразилиа','Argentina':'Буэнос-Айрес','Chile':'Сантьяго','Peru':'Лима','Colombia':'Богота','Venezuela':'Каракас','United Kingdom':'Лондон','France':'Париж','Germany':'Берлин','Spain':'Мадрид','Portugal':'Лиссабон','Italy':'Рим','Poland':'Варшава','Ukraine':'Киев','Belarus':'Минск','Norway':'Осло','Sweden':'Стокгольм','Finland':'Хельсинки','Denmark':'Копенгаген','Netherlands':'Амстердам','Belgium':'Брюссель','Switzerland':'Берн','Austria':'Вена','Czechia':'Прага','Greece':'Афины','Turkey':'Анкара','China':'Пекин','Japan':'Токио','India':'Нью-Дели','Pakistan':'Исламабад','South Korea':'Сеул','North Korea':'Пхеньян','Thailand':'Бангкок','Vietnam':'Ханой','Indonesia':'Джакарта','Malaysia':'Куала-Лумпур','Philippines':'Манила','Saudi Arabia':'Эр-Рияд','Iran':'Тегеран','Iraq':'Багдад','Israel':'Иерусалим','Egypt':'Каир','South Africa':'Претория','Nigeria':'Абуджа','Kenya':'Найроби','Ethiopia':'Аддис-Абеба','Australia':'Канберра','New Zealand':'Веллингтон'};
+ const capital=base.capital||CAPITALS[id]||p.CAPITAL||'Нет данных в сценарии';
  const isPlayer=id===state.selected;
  title.textContent='Государство · '+name;
  drawer.classList.add('country-open');drawer.classList.remove('hidden');
@@ -92,7 +93,7 @@ function styleFeature(f){
 const RU_COUNTRY_NAMES={RU:'Россия',US:'США',GB:'Великобритания',KR:'Южная Корея',KP:'КНДР',CZ:'Чехия',TR:'Турция',IR:'Иран',SY:'Сирия',TW:'Тайвань',CD:'ДР Конго',CG:'Республика Конго',CI:'Кот-д’Ивуар',BO:'Боливия',VE:'Венесуэла',TZ:'Танзания',MD:'Молдова',PS:'Палестина',VA:'Ватикан',XK:'Косово'};
 const ruDisplayNames=typeof Intl!=='undefined'&&Intl.DisplayNames?new Intl.DisplayNames(['ru'],{type:'region'}):null;
 function getCountryInfo(feature){
- const p=feature.properties||{},code=String(p.ISO_A2||p.ISO_A2_EH||p.iso_a2||'').toUpperCase(),original=p.ADMIN||p.admin||p.name||p.NAME||'Государство';
+ const p=feature.properties||{},rawCode=String(p.ISO_A2||'').toUpperCase(),code=/^[A-Z]{2}$/.test(rawCode)?rawCode:String(p.ISO_A2_EH||p.iso_a2||'').toUpperCase(),original=p.ADMIN||p.admin||p.name||p.NAME||'Государство';
  let name=RU_COUNTRY_NAMES[code]||p.NAME_RU;if(!name&&/^[A-Z]{2}$/.test(code)&&ruDisplayNames){try{name=ruDisplayNames.of(code)}catch(e){}}
  if(!name||name===code)name=original;
  let flag='🏳️';if(/^[A-Z]{2}$/.test(code)&&code!=='-99')flag=Array.from(code).map(ch=>String.fromCodePoint(127397+ch.charCodeAt(0))).join('');if(code==='XK')flag='🇽🇰';
