@@ -37,7 +37,7 @@ async function ask(system,user,maxTokens=1200){
   body={
    systemInstruction:{parts:[{text:system}]},
    contents:[{role:'user',parts:[{text:user}]}],
-   generationConfig:{temperature:.55,maxOutputTokens:maxTokens,responseMimeType:'application/json'}
+   generationConfig:{maxOutputTokens:maxTokens,responseMimeType:'application/json',thinkingConfig:{thinkingLevel:(process.env.GEMINI_THINKING_LEVEL||'LOW').toUpperCase()}}
   };
  }else{
   body={model:MODEL,temperature:.55,messages:[{role:'system',content:system},{role:'user',content:user}]};
