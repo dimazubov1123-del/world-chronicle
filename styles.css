@@ -437,3 +437,9 @@ body.wc-news-open{overflow:hidden}
 .wc-social-ai-result small{display:block;margin-top:8px;color:#bda77d;font-size:8px}
 .wc-social-empty{padding:18px;text-align:center;color:#8fa0af;font-size:10px;line-height:1.6}
 @media(max-width:600px){.wc-social-panel{width:calc(100vw - 12px);height:calc(100dvh - 12px);border-radius:6px}.wc-social-panel>header{padding:11px 12px}.wc-social-panel>nav button{font-size:8px;padding:0 3px}.wc-social-panel>main{padding:9px}.wc-social-log{max-height:29vh}.wc-social-panel textarea{min-height:60px}}
+
+/* Live war-map motion: animated front lines and attack markers */
+.wc-frontline-pulse{animation:wc-frontline-glow 1.35s ease-in-out infinite alternate}
+.wc-frontline-dash{animation:wc-frontline-advance .9s linear infinite}
+@keyframes wc-frontline-glow{from{stroke-opacity:.16}to{stroke-opacity:.52}}
+@keyframes wc-frontline-advance{from{stroke-dashoffset:0}to{stroke-dashoffset:-20}}
