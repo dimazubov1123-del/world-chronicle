@@ -245,19 +245,15 @@ function loadRegions(){
    const indexRegions=()=>{regionIndex.clear();for(const f of regionData.features||[]){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}};
    indexRegions();regionsLoading=false;refreshRegions();ensureCountryRegionCoverage();window.dispatchEvent(new Event('wc-regions-loaded'));
    $('map-hint').textContent='Основные регионы загружены. Детализируются административные границы Европы…';
-   const supplements=[
-    ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],['VAT','Vatican City'],
-    ['BEL','Belgium'],['NLD','Netherlands'],['CHE','Switzerland'],['AUT','Austria'],['CZE','Czechia'],['SVK','Slovakia'],
-    ['SVN','Slovenia'],['HRV','Croatia'],['SRB','Serbia'],['MNE','Montenegro'],['ALB','Albania'],['MKD','North Macedonia'],
-    ['BIH','Bosnia and Herzegovina'],['EST','Estonia'],['LVA','Latvia'],['LTU','Lithuania'],['IRL','Ireland'],
-    ['DNK','Denmark'],['ISL','Iceland'],['CYP','Cyprus'],['BGR','Bulgaria'],['HUN','Hungary'],['ROU','Romania'],['PRT','Portugal'],['GRC','Greece'],
-    ['DEU','Germany'],['FRA','France'],['POL','Poland'],['UKR','Ukraine'],['ITA','Italy'],['ESP','Spain'],['GBR','United Kingdom'],['NOR','Norway'],['SWE','Sweden'],['FIN','Finland']
-   ];
+   const supplements=Array.from(new Map((window.__wcCountryFeatures||[]).map(f=>{
+    const p=f.properties||{},iso=String(p.ADM0_A3||p.ISO_A3||p.iso_a3||'').toUpperCase(),label=String(p.ADMIN||p.admin||p.NAME||p.name||'');
+    return [iso,{iso,label}];
+   }).filter(([iso,x])=>iso&&iso!=='-99'&&x.label)).values());
    (async()=>{
     let boundaryIndex=[];
     try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok){const metaData=await metaResponse.json();boundaryIndex=Array.isArray(metaData)?metaData:[]}}catch(e){}
     const fallbackGeo={AND:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/AND/ADM1/geoBoundaries-AND-ADM1_simplified.geojson',LIE:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LIE/ADM1/geoBoundaries-LIE-ADM1_simplified.geojson',LUX:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LUX/ADM1/geoBoundaries-LUX-ADM1_simplified.geojson',SMR:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/SMR/ADM1/geoBoundaries-SMR-ADM1_simplified.geojson',MLT:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/MLT/ADM1/geoBoundaries-MLT-ADM1_simplified.geojson'};
-    const microstates=new Set(['AND','LIE','LUX','MCO','SMR','MLT','VAT']);
+    const microstates=new Set(['AND','LIE','LUX','MCO','SMR','MLT','VAT','ATG','BRB','BHR','COM','CPV','DMA','FSM','GRD','KIR','KNA','LCA','MDV','MHL','MUS','NRU','PLW','SGP','SYC','TON','TUV','VCT','WSM']);
     const countryByIso=new Map((window.__wcCountryFeatures||[]).map(f=>{const p=f.properties||{},iso=String(p.ADM0_A3||p.ISO_A3||p.iso_a3||'').toUpperCase(),id=String(p.ADMIN||p.admin||p.name||p.NAME||'');return [iso,id]}).filter(x=>x[0]&&x[1]));
     const readGeo=async url=>{const r=await fetch(url,{cache:'force-cache'});if(!r.ok)throw Error('HTTP '+r.status);const g=await r.json();return Array.isArray(g.features)?g.features:[]};
     const loadBoundary=async(iso,level)=>{
@@ -267,19 +263,22 @@ function loadRegions(){
      if(level===1&&fallbackGeo[iso]){try{return await readGeo(fallbackGeo[iso])}catch(e){}}
      return [];
     };
-    const extra=await Promise.all(supplements.map(async ([iso,label])=>{
+    const extra=new Array(supplements.length);let cursor=0;
+    const worker=async()=>{while(cursor<supplements.length){
+     const index=cursor++,entry=supplements[index],iso=entry.iso,label=entry.label;
      const canonical=countryByIso.get(iso)||label;
      let features=await loadBoundary(iso,1),level=1;
-     if(microstates.has(iso)){const deeper=await loadBoundary(iso,2);if(deeper.length>features.length){features=deeper;level=2}}
-     return {iso,admin:canonical,label,level,features:features.map(f=>({...f,properties:{...(f.properties||{}),admin:canonical,name:(f.properties||{}).shapeName||(f.properties||{}).shapeName_en||(f.properties||{}).name||label,geonunit:canonical,iso_a3:iso,gbLevel:level}}))};
-    }));
+     if(microstates.has(iso)||!features.length){const deeper=await loadBoundary(iso,2);if(deeper.length>features.length){features=deeper;level=2}}
+     extra[index]={iso,admin:canonical,label,level,features:features.map(f=>({...f,properties:{...(f.properties||{}),admin:canonical,name:(f.properties||{}).shapeName||(f.properties||{}).shapeName_en||(f.properties||{}).name||label,geonunit:canonical,iso_a3:iso,gbLevel:level}}))};
+    }};
+    await Promise.all(Array.from({length:8},worker));
     return extra;
    })().then(extra=>{
     const successful=extra.filter(x=>x.features.length),aliases=new Set(successful.flatMap(x=>[x.admin,x.label,x.iso]));
     regionData.features=(regionData.features||[]).filter(f=>{const p=f.properties||{},keys=[p.admin,p.ADMIN,p.geonunit,p.shapeGroup,p.iso_a3,p.ISO_A3].map(x=>String(x||''));return !keys.some(k=>aliases.has(k))}).concat(...successful.map(x=>x.features));
     window.__wcRegionData=regionData;indexRegions();ensureCountryRegionCoverage();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
     const missing=extra.filter(x=>!x.features.length).map(x=>x.label),microDetails=successful.filter(x=>microstates.has(x.iso)).map(x=>x.label+': '+x.features.length).join(' · ');
-    $('map-hint').textContent='Административные единицы загружены: '+successful.length+'/'+extra.length+' стран. Микрогосударства: '+(microDetails||'детализация не получена')+'. '+(missing.length?'Нет детальных данных: '+missing.join(', '):'Все запрошенные наборы получены.')+' Для стран без набора оставлен контур государства.';
+    $('map-hint').textContent='Административные единицы загружены: '+successful.length+'/'+extra.length+' государств. Микрогосударства: '+(microDetails||'детализация не получена')+'. '+(missing.length?'Нет детальных данных: '+missing.join(', '):'Все запрошенные наборы получены.')+' Для стран без набора оставлен контур государства.';
 
    }).catch(()=>{$('map-hint').textContent='Основные регионы загружены; дополнительная детализация Европы недоступна.'});
   })  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
