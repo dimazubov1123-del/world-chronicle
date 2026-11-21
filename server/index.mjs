@@ -100,8 +100,8 @@ function compactWorld(b){
  const major=[...allCountries].sort((a,b)=>(Number(b.gdpEstimate)||0)-(Number(a.gdpEstimate)||0));
  const chosen=new Set(),batch=[];
  const add=c=>{if(c&&!chosen.has(c.id)&&batch.length<5){chosen.add(c.id);batch.push(c)}};
- priority.slice(0,3).forEach(add);
- major.slice(0,Math.min(2,5-batch.length)).forEach(add);
+ priority.slice(0,2).forEach(add);
+ major.slice(0,Math.min(1,5-batch.length)).forEach(add);
  const rotating=allCountries.filter(c=>!chosen.has(c.id));
  if(rotating.length){const offset=((Math.max(0,Number(b.turn)||0)*5)%rotating.length);for(let i=0;i<5-batch.length;i++)add(rotating[(offset+i)%rotating.length]);}
  return {
