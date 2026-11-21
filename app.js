@@ -257,13 +257,30 @@ function loadRegions(){
     let boundaryIndex=[];
     try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok)boundaryIndex=await metaResponse.json()}catch(e){}
     const fallbackGeo={AND:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/AND/ADM1/geoBoundaries-AND-ADM1_simplified.geojson',LIE:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LIE/ADM1/geoBoundaries-LIE-ADM1_simplified.geojson',LUX:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/LUX/ADM1/geoBoundaries-LUX-ADM1_simplified.geojson',SMR:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/SMR/ADM1/geoBoundaries-SMR-ADM1_simplified.geojson',MLT:'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/MLT/ADM1/geoBoundaries-MLT-ADM1_simplified.geojson'};
-    const extra=await Promise.all(supplements.map(async ([iso,admin])=>{try{const meta=boundaryIndex.find(x=>x.boundaryISO===iso&&x.boundaryType==='ADM1');const url=meta?.simplifiedGeometryGeoJSON||fallbackGeo[iso];if(!url)return {admin,features:[]};const r=await fetch(url,{cache:'force-cache'});if(!r.ok)return {admin,features:[]};const g=await r.json();return {admin,features:(g.features||[]).map(f=>({...f,properties:{...(f.properties||{}),admin,name:(f.properties||{}).shapeName||(f.properties||{}).name||admin,geonunit:admin,iso_a3:iso}}))}}catch(e){return {admin,features:[]}}}));
+    const microstates=new Set(['AND','LIE','LUX','MCO','SMR','MLT','VAT']);
+    const countryByIso=new Map((window.__wcCountryFeatures||[]).map(f=>{const p=f.properties||{},iso=String(p.ADM0_A3||p.ISO_A3||p.iso_a3||'').toUpperCase(),id=String(p.ADMIN||p.admin||p.name||p.NAME||'');return [iso,id]}).filter(x=>x[0]&&x[1]));
+    const readGeo=async url=>{const r=await fetch(url,{cache:'force-cache'});if(!r.ok)throw Error('HTTP '+r.status);const g=await r.json();return Array.isArray(g.features)?g.features:[]};
+    const loadBoundary=async(iso,level)=>{
+     let meta=boundaryIndex.find(x=>x.boundaryISO===iso&&x.boundaryType==='ADM'+level);
+     if(!meta){try{const mr=await fetch('https://www.geoboundaries.org/api/current/gbOpen/'+iso+'/ADM'+level+'/',{cache:'force-cache'});if(mr.ok){const data=await mr.json();meta=Array.isArray(data)?data[0]:data}}catch(e){}}
+     if(meta?.simplifiedGeometryGeoJSON){try{return await readGeo(meta.simplifiedGeometryGeoJSON)}catch(e){}}
+     if(level===1&&fallbackGeo[iso]){try{return await readGeo(fallbackGeo[iso])}catch(e){}}
+     return [];
+    };
+    const extra=await Promise.all(supplements.map(async ([iso,label])=>{
+     const canonical=countryByIso.get(iso)||label;
+     let features=await loadBoundary(iso,1),level=1;
+     if(microstates.has(iso)&&features.length<=1){const deeper=await loadBoundary(iso,2);if(deeper.length>features.length){features=deeper;level=2}}
+     return {iso,admin:canonical,label,level,features:features.map(f=>({...f,properties:{...(f.properties||{}),admin:canonical,name:(f.properties||{}).shapeName||(f.properties||{}).shapeName_en||(f.properties||{}).name||label,geonunit:canonical,iso_a3:iso,gbLevel:level}}))};
+    }));
     return extra;
    })().then(extra=>{
-    const replaced=new Set(extra.filter(x=>x.features.length).map(x=>x.admin));
-    regionData.features=(regionData.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).geonunit||''))).concat(...extra.map(x=>x.features));
+    const successful=extra.filter(x=>x.features.length),aliases=new Set(successful.flatMap(x=>[x.admin,x.label,x.iso]));
+    regionData.features=(regionData.features||[]).filter(f=>{const p=f.properties||{},keys=[p.admin,p.ADMIN,p.geonunit,p.shapeGroup,p.iso_a3,p.ISO_A3].map(x=>String(x||''));return !keys.some(k=>aliases.has(k))}).concat(...successful.map(x=>x.features));
     window.__wcRegionData=regionData;indexRegions();ensureCountryRegionCoverage();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
-    $('map-hint').textContent='Подробные регионы мира и административные единицы Европы загружены.';
+    const missing=extra.filter(x=>!x.features.length).map(x=>x.label),counts=successful.map(x=>x.label+': '+x.features.length);
+    $('map-hint').textContent='Административные единицы загружены: '+successful.length+'/'+extra.length+' стран. '+(missing.length?'Нет детальных данных: '+missing.join(', '):'Все запрошенные наборы получены.')+' VAT/Ватикан использует контур государства.';
+
    }).catch(()=>{$('map-hint').textContent='Основные регионы загружены; дополнительная детализация Европы недоступна.'});
   })  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
 }
