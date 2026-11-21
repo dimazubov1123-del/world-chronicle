@@ -15,8 +15,8 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#"><span class="brand-mark">W</span><span><strong>WORLD CHRONICLE</strong><small>ALTERNATE HISTORY SANDBOX</small></span></a>
-      <div class="campaign-meta"><span class="live-dot"></span><span id="scenario-label">Европа на распутье</span><span class="meta-divider"></span><span class="resource-chip">Казна <b id="treasury-top">₽ 120 млрд</b></span><span class="resource-chip">Престиж <b id="prestige-top">45</b></span><span class="meta-divider"></span><span id="date-label">1 января 1936</span></div>
-      <div class="top-actions"><button class="icon-button" id="help-btn" title="Справка">?</button><button class="profile-button"><span class="avatar">П</span><span>Игрок</span></button></div>
+      <div class="campaign-meta"><span class="live-dot"></span><span id="scenario-label">Европа на распутье</span><span class="meta-divider"></span><span class="resource-chip"><i class="resource-symbol">₽</i> Казна <b id="treasury-top">₽ 120 млрд</b></span><span class="resource-chip"><i class="resource-symbol">◆</i> Престиж <b id="prestige-top">45</b></span><span class="meta-divider"></span><span id="date-label">1 января 1936</span></div>
+      <div class="top-actions"><button class="sound-toggle" id="sound-toggle" type="button" aria-pressed="true">♫ <span>ЗВУК ВКЛ.</span></button><button class="icon-button" id="help-btn" title="Справка">?</button><button class="profile-button"><span class="avatar">П</span><span>Игрок</span></button></div>
     </header>
     <main class="workspace">
       <aside class="left-panel panel">
@@ -42,14 +42,18 @@
           <div class="stat-box"><span>ВООРУЖЁННЫЕ СИЛЫ</span><strong id="military">Высокие</strong></div>
         </div>
         <div class="section-rule"></div>
-        <div class="section-title"><span>УПРАВЛЕНИЕ ГОСУДАРСТВОМ</span><span class="muted">01—06</span></div>
+        <div class="nav-group-label">ГОСУДАРСТВО</div>
         <nav class="main-nav">
-          <button class="nav-item active" data-action="overview"><span class="nav-icon">▦</span>Обзор государства</button>
-          <button class="nav-item" data-action="diplomacy"><span class="nav-icon">⇄</span>Дипломатия</button>
-          <button class="nav-item" data-action="economy"><span class="nav-icon">◫</span>Экономика</button>
-          <button class="nav-item" data-action="military"><span class="nav-icon">⚔</span>Вооружённые силы</button>
-          <button class="nav-item" data-action="politics"><span class="nav-icon">▤</span>Внутренняя политика</button>
-          <button class="nav-item" data-action="elections"><span class="nav-icon">⚖</span>Выборы и парламент</button>
+          <button class="nav-item active" data-action="overview"><span class="nav-icon">⌂</span><span>Обзор страны</span><kbd>1</kbd></button>
+          <button class="nav-item" data-action="politics"><span class="nav-icon">▤</span><span>Внутренняя политика</span><kbd>2</kbd></button>
+          <button class="nav-item" data-action="elections"><span class="nav-icon">⚖</span><span>Выборы и парламент</span><kbd>3</kbd></button>
+        </nav>
+        <div class="nav-group-label">ВНЕШНЯЯ ПОЛИТИКА</div>
+        <nav class="main-nav"><button class="nav-item" data-action="diplomacy"><span class="nav-icon">⇄</span><span>Дипломатия</span><kbd>4</kbd></button></nav>
+        <div class="nav-group-label">ЭКОНОМИКА И ВОЕННОЕ ДЕЛО</div>
+        <nav class="main-nav">
+          <button class="nav-item" data-action="economy"><span class="nav-icon">▥</span><span>Экономика</span><kbd>5</kbd></button>
+          <button class="nav-item" data-action="military"><span class="nav-icon">⚔</span><span>Вооружённые силы</span><kbd>6</kbd></button>
         </nav>
         <div class="left-footer"><span class="footer-mark">WC</span><span>WORLD CHRONICLE<br><small>STRATEGY EDITION · BUILD 0.2</small></span></div>
       </aside>
