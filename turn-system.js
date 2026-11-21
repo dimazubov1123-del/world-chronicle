@@ -10,7 +10,11 @@
   d.setDate(d.getDate()+weeks*7);
   state.year=d.getFullYear();state.month=d.getMonth();state.day=d.getDate();state.turn=(Number(state.turn)||0)+1;
  }
- function pendingText(){return (state.pendingOrders||[]).map(x=>typeof x==='string'?x:x.text).filter(Boolean)}
+ function pendingText(){
+  const queued=(state.pendingOrders||[]).map(x=>typeof x==='string'?x:x.text).filter(Boolean);
+  const initiatives=(state.initiatives||[]).filter(x=>x&&x.status!=='Завершено'&&x.status!=='Заблокировано'&&Number(x.createdTurn||0)<=Number(state.turn||0)).map(x=>x.text).filter(Boolean);
+  return [...new Set([...queued,...initiatives])];
+ }
  function refreshOrderQueue(){
   const box=$('pax-orders');if(!box)return;
   const orders=pendingText();
