@@ -672,7 +672,7 @@ function countryPicker(){openCountrySelection(false)}
 (function(){
  const cssEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const localAIHistory=[],localAIResults=[];
- let panel=null,activeTab='chat',social=null,refreshTimer=null,aiTargetName='';
+ let panel=null,activeTab='chat',social=null,refreshTimer=null,badgeTimer=null,aiTargetName='';
  const api=()=>window.WC_MULTIPLAYER;
  const session=()=>api()?.session?.();
  const request=(path,method='GET',body=null)=>{const ss=session();if(!ss)throw Error('Вы не подключены к сетевой комнате.');return api().api('/api/rooms/'+ss.code+path+(method==='GET'?'?token='+encodeURIComponent(ss.token):''),method,method==='GET'?null:{...body,token:ss.token})};
@@ -776,7 +776,9 @@ function countryPicker(){openCountrySelection(false)}
    const advisor=e.target.closest('#pax-advisor-open');if(advisor){e.preventDefault();e.stopImmediatePropagation();open('advisor');return}
    const notice=e.target.closest('#wc-social-notification');if(notice){e.preventDefault();e.stopImmediatePropagation();open('advisor')}
   },true);
+  window.WC_SOCIAL_REFRESH=updateBadge;
   if(session())refresh().then(updateBadge);
+  if(!badgeTimer)badgeTimer=setInterval(()=>{if(session())refresh()},5000);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountControls);else mountControls();
 })();
