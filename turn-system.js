@@ -58,7 +58,7 @@
    window.__replayingEvents=true;
    if(result.playerReport)event('ДЕЙСТВИЯ ПРАВИТЕЛЬСТВА','Отчёт за период '+startDate+' — '+dateText(),String(result.playerReport).slice(0,9000));
    if(result.worldSummary)event('МИРОВАЯ ОБСТАНОВКА','Обзор мира · '+startDate+' — '+dateText(),String(result.worldSummary).slice(0,5000));
-   (result.events||[]).forEach(e=>{if(e?.title&&e?.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ'),String(e.title),String(e.description))});
+   (result.events||[]).forEach(e=>{if(e?.title&&e?.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ'),String(e.title),String(e.description),e)});
    (result.actions||[]).forEach(a=>{
     if(!a?.countryId||a.countryId===state.selected)return;
     const target=a.targetCountryId;
