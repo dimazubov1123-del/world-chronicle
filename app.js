@@ -1,6 +1,6 @@
 /* WORLD CHRONICLE — playable browser strategy prototype */
 const SAVE_KEY='worldChronicleSave_v2';
-const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:true,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],initiatives:[],pendingOrders:[],aiWorldState:{countries:{},lastSummary:''},geoLayer:null,armies:[],occupiedRegions:{}};
+const state={year:1936,month:0,day:1,turn:1,paused:true,speed:1,selected:'Russia',regionsVisible:true,citiesVisible:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],periodArchive:[],currentPeriod:null,initiatives:[],pendingOrders:[],aiWorldState:{countries:{},lastSummary:''},geoLayer:null,armies:[],occupiedRegions:{}};
 const countries={
 'Russia':{name:'Российская Федерация',capital:'Москва',flag:'🇷🇺',population:'170 млн',economy:'Сильная',stability:72,military:'Высокие'},
 'United States of America':{name:'Соединённые Штаты',capital:'Вашингтон',flag:'🇺🇸',population:'330 млн',economy:'Крупнейшая',stability:81,military:'Очень высокие'},
@@ -72,22 +72,68 @@ function playSound(kind='click'){
 }
 function setSoundEnabled(on){soundEnabled=!!on;localStorage.setItem('wcSound',soundEnabled?'on':'off');const b=$('sound-toggle');if(b){b.classList.toggle('sound-off',!soundEnabled);b.setAttribute('aria-pressed',String(soundEnabled));b.innerHTML=soundEnabled?'♫ <span>ЗВУК ВКЛ.</span>':'♩ <span>ЗВУК ВЫКЛ.</span>'}if(soundEnabled)playSound('click')}
 function updateUI(){$('date-label').textContent=dateText();$('turn-label').textContent='ХОД '+String(state.turn).padStart(3,'0');$('treasury-top').textContent='₽ '+fmt(state.treasury)+' млрд';$('prestige-top').textContent=fmt(state.prestige);$('stability').textContent=fmt(state.stability)+'%';$('economy').textContent='Индекс '+fmt(state.gdp);$('military').textContent=fmt(state.army)+' тыс.'}
-function showChronicleEvent(e){
- const overlay=$('event-overlay');if(!overlay)return;
- $('event-date').textContent=e.date+' · '+(e.category||'ГОСУДАРСТВО');
- $('event-heading').textContent=e.title;$('event-description').textContent=e.description;
- const details=$('event-details');if(details){const fields=[['Предыстория',e.background],['Развитие событий',e.development],['Последствия',e.consequences],['Международная реакция',e.reaction]];details.innerHTML=fields.filter(x=>x[1]).map(x=>'<section class="event-detail"><b>'+x[0]+'</b><p></p></section>').join('');details.querySelectorAll('.event-detail p').forEach((p,i)=>p.textContent=fields.filter(x=>x[1])[i][1]);details.hidden=!details.children.length;}
- $('event-emblem').textContent=e.category==='ВОЕННОЕ ДЕЛО'?'⚔':e.category==='ДИПЛОМАТИЯ'?'✦':e.category==='ЭКОНОМИКА'?'₽':e.category==='ОБЩЕСТВО'?'♟':'§';
- overlay.classList.remove('hidden');document.body.classList.add('event-open');playSound('event');
-}
+function showChronicleEvent(e){if(window.openNewsDrawer){window.openNewsDrawer(e?.periodTurn??'current');return;}const overlay=$('event-overlay');if(!overlay)return;$('event-date').textContent=e.date+' · '+(e.category||'ГОСУДАРСТВО');$('event-heading').textContent=e.title;$('event-description').textContent=e.description;overlay.classList.remove('hidden');document.body.classList.add('event-open');playSound('event')}
 function closeChronicleEvent(){const overlay=$('event-overlay');if(overlay)overlay.classList.add('hidden');document.body.classList.remove('event-open')}
+function wcNewsEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function wcNewsDate(v){return String(v||'').trim()||'Дата не указана'}
+let wcNewsSelectedId=null,wcNewsPeriod='current';
+function renderNewsArticle(item){
+ const pane=$('wc-news-article');if(!pane)return;
+ if(!item){pane.innerHTML='<div class="wc-news-empty"><span>✦</span><b>События за этот период не зафиксированы</b><p>После следующего временного перехода здесь появятся публикации мировой хроники.</p></div>';return}
+ const paragraphs=String(item.article||item.description||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
+ const sections=[['Предыстория',item.background],['Развитие событий',item.development],['Последствия',item.consequences],['Международная реакция',item.reaction]].filter(x=>x[1]);
+ pane.innerHTML='<div class="wc-news-paper"><div class="wc-news-kicker">WORLD CHRONICLE <span>·</span> МИРОВАЯ ГАЗЕТА</div><div class="wc-news-dateline">'+wcNewsEsc(wcNewsDate(item.date))+' <i>—</i> '+wcNewsEsc(item.category||'МИРОВЫЕ СОБЫТИЯ')+(item.location?' <i>·</i> '+wcNewsEsc(item.location):'')+'</div><div class="wc-news-rule"></div><div class="wc-news-label">'+(item.importance==='major'?'ГЛАВНОЕ СОБЫТИЕ':'ХРОНИКА ДНЯ')+'</div><h1>'+wcNewsEsc(item.title)+'</h1>'+(item.subtitle?'<h2>'+wcNewsEsc(item.subtitle)+'</h2>':'')+(item.lead?'<p class="wc-news-lead">'+wcNewsEsc(item.lead)+'</p>':'')+'<div class="wc-news-body">'+paragraphs.map(p=>'<p>'+wcNewsEsc(p)+'</p>').join('')+'</div>'+(sections.length?'<div class="wc-news-sections">'+sections.map(x=>'<section><b>'+wcNewsEsc(x[0])+'</b><p>'+wcNewsEsc(x[1])+'</p></section>').join('')+'</div>':'')+'<div class="wc-news-foot">WORLD CHRONICLE <span>Официальная хроника альтернативного мира</span></div></div>';
+}
+function renderNewsDrawer(period){
+ const drawer=$('wc-news-drawer');if(!drawer)return;
+ const archive=Array.isArray(state.periodArchive)?state.periodArchive:[];
+ const select=$('wc-news-period');
+ if(select){
+  const options=[{value:'current',label:'Последний период'},{value:'all',label:'Вся хроника'},...archive.map(x=>({value:String(x.turn),label:(x.label||'Период')+' · '+(x.startDate||'')+' — '+(x.endDate||'')}))];
+  select.innerHTML=options.map(o=>'<option value="'+wcNewsEsc(o.value)+'">'+wcNewsEsc(o.label)+'</option>').join('');
+  select.value=String(period??wcNewsPeriod);
+  if(!Array.from(select.options).some(o=>o.value===select.value))select.value='current';
+  wcNewsPeriod=select.value;
+ }
+ let items=(state.events||[]);
+ if(wcNewsPeriod!=='all'&&wcNewsPeriod!=='current')items=items.filter(e=>String(e.periodTurn)===wcNewsPeriod);
+ else if(wcNewsPeriod==='current'){
+  const latest=archive[0];
+  const turn=latest?.turn??state.turn;
+  items=items.filter(e=>Number(e.periodTurn)===Number(turn));
+ }
+ const list=$('wc-news-list');if(!list)return;
+ list.innerHTML='';
+ if(!items.length){list.innerHTML='<div class="wc-news-list-empty">За выбранный период новостей нет.</div>';renderNewsArticle(null);return}
+ items.forEach((item,index)=>{
+  const button=document.createElement('button');button.type='button';button.className='wc-news-item'+(item.id===wcNewsSelectedId?' active':'')+(item.importance==='major'?' major':'');
+  button.innerHTML='<span class="wc-news-item-meta"><i>'+wcNewsEsc(item.category||'СОБЫТИЕ')+'</i><time>'+wcNewsEsc(wcNewsDate(item.date))+'</time></span><b></b><small></small>';
+  button.querySelector('b').textContent=item.title||'Событие';
+  button.querySelector('small').textContent=item.lead||item.description||'';
+  button.addEventListener('click',()=>{wcNewsSelectedId=item.id;list.querySelectorAll('.wc-news-item').forEach(x=>x.classList.remove('active'));button.classList.add('active');renderNewsArticle(item)});
+  list.append(button);
+ });
+ const selected=items.find(x=>x.id===wcNewsSelectedId)||items[0];wcNewsSelectedId=selected.id;
+ const selectedButton=Array.from(list.children).find(x=>x.querySelector('b')?.textContent===selected.title);selectedButton?.classList.add('active');
+ renderNewsArticle(selected);
+ const count=$('wc-news-total');if(count)count.textContent=String(items.length).padStart(2,'0');
+}
+function openNewsDrawer(period='current'){
+ const drawer=$('wc-news-drawer');if(!drawer)return;
+ drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');document.body.classList.add('wc-news-open');
+ renderNewsDrawer(period==='current'?'current':period);
+}
+function closeNewsDrawer(){const drawer=$('wc-news-drawer');if(drawer){drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true')}document.body.classList.remove('wc-news-open')}
+window.openNewsDrawer=openNewsDrawer;window.closeNewsDrawer=closeNewsDrawer;window.renderNewsDrawer=renderNewsDrawer;
 function event(category,title,description,details={}){
- const item={category,title,description,date:dateText(),...(details&&typeof details==='object'?{background:String(details.background||'').slice(0,1800),development:String(details.development||'').slice(0,2400),consequences:String(details.consequences||'').slice(0,1800),reaction:String(details.reaction||'').slice(0,1400),importance:details.importance||'normal'}:{})};state.events.unshift(item);state.events=state.events.slice(0,12);
- const list=$('news-list');list.innerHTML='';
- state.events.slice(0,7).forEach(e=>{const a=document.createElement('article');a.className='news-item';const tag=e.category==='ДИПЛОМАТИЯ'?'gold':e.category==='ЭКОНОМИКА'?'blue':e.category==='ВОЕННОЕ ДЕЛО'?'red':'gold';a.innerHTML='<div class="news-meta"><span class="news-tag '+tag+'">'+e.category+'</span><time>'+e.date+'</time></div><h3></h3><p></p>';a.querySelector('h3').textContent=e.title;a.querySelector('p').textContent=e.description;list.append(a)});
+ const d=details&&typeof details==='object'?details:{};
+ const item={id:'EV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),category:String(category||'МИРОВЫЕ СОБЫТИЯ'),title:String(title||'Событие'),description:String(description||''),date:wcNewsDate(d.date||dateText()),periodTurn:Number(state.turn)||1,periodStart:state.currentPeriod?.startDate||'',periodEnd:state.currentPeriod?.endDate||'',periodLabel:state.currentPeriod?.label||'',subtitle:String(d.subtitle||'').slice(0,300),lead:String(d.lead||'').slice(0,1000),article:String(d.article||'').slice(0,9000),location:String(d.location||'').slice(0,160),background:String(d.background||'').slice(0,1800),development:String(d.development||'').slice(0,2400),consequences:String(d.consequences||'').slice(0,1800),reaction:String(d.reaction||'').slice(0,1400),importance:d.importance==='major'?'major':'normal'};
+ state.events.unshift(item);state.events=state.events.slice(0,500);
+ const list=$('news-list');if(list){list.innerHTML='';state.events.slice(0,7).forEach(e=>{const node=document.createElement('article');node.className='news-item';const tag=e.category==='ДИПЛОМАТИЯ'?'gold':e.category==='ЭКОНОМИКА'?'blue':e.category==='ВОЕННОЕ ДЕЛО'?'red':'gold';node.innerHTML='<div class="news-meta"><span class="news-tag '+tag+'">'+wcNewsEsc(e.category)+'</span><time>'+wcNewsEsc(e.date)+'</time></div><h3></h3><p></p>';node.querySelector('h3').textContent=e.title;node.querySelector('p').textContent=e.lead||e.description;list.append(node)})}
  $('event-count').textContent=String(state.events.length).padStart(2,'0');
- const important=item.importance==='major'||/выбор|правительств|парламент|закон:|указ:|обращение к нации|войн|мобилиз|напад|пакт о ненападении|торговое соглашение|кризис|переворот|аннекс|капитуляц|сформирована парламентская коалиц|состоялись общенациональные/i.test(category+' '+title);
- if(important&&!window.__replayingEvents)showChronicleEvent(item);
+ const important=item.importance==='major'||/выбор|правительств|парламент|закон:|указ:|обращение к нации|войн|мобилиз|напад|пакт о ненападении|торговое соглашение|кризис|переворот|аннекс|капитуляц|сформирована парламентская коалиц|состоялись общенациональные/i.test(item.category+' '+item.title);
+ if($('wc-news-drawer')?.classList.contains('open'))renderNewsDrawer(wcNewsPeriod);
+ if(important&&!window.__replayingEvents&&window.openNewsDrawer)openNewsDrawer(item.periodTurn);
 }
 function selectCountry(id,feature,displayName,displayFlag){
  const base=countries[id]||{name:displayName||id,capital:'Не определена',flag:displayFlag||'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};
@@ -206,7 +252,7 @@ if(window.L){
 }
 function modal(title,html){$('modal-title').textContent=title;$('modal-content').innerHTML=html;$('modal-backdrop').classList.remove('hidden')}function closeModal(){$('modal-backdrop').classList.add('hidden')}
 function save(){const copy={...state,geoLayer:null};localStorage.setItem(SAVE_KEY,JSON.stringify(copy));$('advisor-text').textContent='Кампания сохранена в этом браузере.'}
-function load(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return false;Object.assign(state,s);state.geoLayer=null;selectCountry(state.selected||'Russia');state.events=[];window.__replayingEvents=true;(s.events||[]).slice().reverse().forEach(e=>event(e.category,e.title,e.description,e));window.__replayingEvents=false;updateUI();return true}catch(e){return false}}
+function load(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return false;Object.assign(state,s);state.geoLayer=null;selectCountry(state.selected||'Russia');state.events=[];state.periodArchive=Array.isArray(s.periodArchive)?s.periodArchive:[];window.__replayingEvents=true;(s.events||[]).slice().reverse().forEach(e=>event(e.category,e.title,e.description,e));window.__replayingEvents=false;updateUI();return true}catch(e){return false}}
 function resetCampaign(year){Object.assign(state,{year:Number(year),month:0,day:1,turn:1,paused:true,election:null,treasury:120,prestige:45,stability:72,gdp:100,army:68,manpower:75,relations:{'United States of America':15,China:5,Germany:-20,France:20,'United Kingdom':18,Japan:-5},treaties:[],wars:[],laws:[],events:[],initiatives:[],pendingOrders:[],armies:[],occupiedRegions:{},aiWorldState:{countries:{},lastSummary:''}});ensureElection();$('scenario-label').textContent=scenarios[year];$('scenario-select').value=String(year);selectCountry('Russia');updateUI();window.WC_WAR?.sync?.();event('ПОЛИТИКА','Кампания началась','Вы вступили в новую эпоху. Судьба государства теперь зависит от ваших решений.');save()}
 function initiativeType(text){const s=text.toLowerCase();if(/арм|мобилиз|дивиз|флот|учени|военн|фронт|обор|ракета/.test(s))return 'ВОЕННОЕ ДЕЛО';if(/переговор|посол|договор|соглаш|альянс|нота|диплом/.test(s))return 'ДИПЛОМАТИЯ';if(/завод|промышлен|инфраструкт|инвест|строитель|торгов|эконом|бюджет|налог/.test(s))return 'ЭКОНОМИКА';return 'ПОЛИТИКА'}
 function addInitiative(text){const value=String(text||'').trim();if(!value)return null;const category=initiativeType(value),weeks=category==='ЭКОНОМИКА'?5:category==='ВОЕННОЕ ДЕЛО'?3:category==='ДИПЛОМАТИЯ'?2:4;const item={id:'I-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),text:value,category,status:'В очереди',progress:0,weeksLeft:weeks,totalWeeks:weeks,createdTurn:state.turn};state.initiatives=state.initiatives||[];state.initiatives.unshift(item);return item}
@@ -455,7 +501,7 @@ load();state.regionsVisible=true;state.armies=state.armies||[];state.occupiedReg
  document.getElementById('pax-own-country').onclick=countryCard;
  document.getElementById('pax-advisor-open').onclick=()=>{title.textContent='Советник государства';drawer.classList.remove('hidden');content.innerHTML='<div class="pax-country-card"><span class="flag">'+current().flag+'</span><div><b>Стратегический советник</b><small>'+esc(current().name)+' · '+dateText()+'</small></div></div><div class="pax-log-item">'+esc(document.getElementById('advisor-text')?.textContent||'Советник готов к работе.')+'</div><div class="pax-log-item">Казна: <b>₽ '+fmt(state.treasury)+' млрд</b><br>Стабильность: <b>'+fmt(state.stability)+'%</b><br>ВВП: <b>'+fmt(state.gdp)+'</b><br>Армия: <b>'+fmt(state.army)+' тыс.</b></div><button class="pax-primary" id="wc-ai-advice">Получить стратегический доклад ИИ</button><div id="wc-ai-advice-result" class="pax-log-item">'+esc(window.__wcLastAiBrief||'Запросите доклад: советник оценит внутреннее положение и международную обстановку.')+'</div>';document.getElementById('wc-ai-advice').onclick=async()=>{const b=document.getElementById('wc-ai-advice'),out=document.getElementById('wc-ai-advice-result');b.disabled=true;b.textContent='Подготовка доклада…';try{const r=await wcAiRequest('advisor',wcAiSnapshot());out.textContent=r.advice||'Доклад не получен.';window.__wcLastAiBrief=out.textContent}catch(e){out.textContent=e.message}finally{b.disabled=false;b.textContent='Обновить стратегический доклад'}}};
  document.getElementById('pax-menu-btn').onclick=()=>{title.textContent='Меню кампании';drawer.classList.remove('hidden');content.innerHTML='<button class="pax-secondary" id="pax-menu-dip">Дипломатия</button> <button class="pax-secondary" id="pax-menu-sound">Звук: вкл./выкл.</button> <button class="pax-secondary" id="pax-menu-scenario">Сменить сценарий</button>';document.getElementById('pax-menu-dip').onclick=()=>open('chat');document.getElementById('pax-menu-sound').onclick=()=>setSoundEnabled(!soundEnabled);document.getElementById('pax-menu-scenario').onclick=()=>document.getElementById('scenario-select')?.focus()};
- document.getElementById('pax-events-btn').onclick=()=>{title.textContent='Хроника событий';drawer.classList.remove('hidden');content.innerHTML=(state.events||[]).map(e=>'<div class="pax-log-item"><b>'+esc(e.date+' · '+e.category)+'</b><br>'+esc(e.title)+'<br>'+esc(e.description)+'</div>').join('')||'<p>Пока нет событий.</p>'};
+ document.getElementById('pax-events-btn').onclick=()=>{window.openNewsDrawer?.('current')};
  function sync(){const c=current();document.getElementById('pax-session-country').textContent=c.name;document.getElementById('pax-date-pill').textContent=dateText();document.getElementById('pax-own-flag').textContent=c.flag;document.getElementById('pax-own-name').textContent=c.name;document.getElementById('pax-events-count').textContent=(state.events||[]).length;if(document.getElementById('pax-orders'))renderOrders()}
  new MutationObserver(sync).observe(document.getElementById('date-label'),{childList:true,subtree:true});
  new MutationObserver(sync).observe(document.getElementById('country-name'),{childList:true,subtree:true});
