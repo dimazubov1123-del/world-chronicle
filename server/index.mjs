@@ -14,7 +14,7 @@ const MODEL=PROVIDER==='groq'?(process.env.GROQ_MODEL||'openai/gpt-oss-120b'):(p
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 
 app.use(cors({origin(origin,cb){if(!origin||!ORIGIN.length||ORIGIN.includes(origin))return cb(null,true);cb(new Error('Origin not allowed'));}}));
-app.use(express.json({limit:'2mb'}));
+app.use(express.json({limit:'8mb'}));
 app.use('/api/ai',rateLimit({windowMs:24*60*60*1000,limit:40,standardHeaders:true,legacyHeaders:false,message:{error:'Дневной лимит AI-запросов World Chronicle исчерпан. Попробуйте завтра.'}}));
 
 app.get('/',(_req,res)=>res.sendFile(path.join(ROOT,'index.html')));
@@ -118,7 +118,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
   if(!world.player?.id)throw Object.assign(new Error('В запросе отсутствует страна игрока.'),{status:400});
   const allowed=new Set((world.allCountryIds||world.countries.map(c=>c.id)).filter(id=>id&&id!==world.player.id));
   const {allCountryIds,...modelWorld}=world;
-  const prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 20 выбранных государств; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
+  let prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 20 выбранных государств; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
   const multiplayerOrders=(Array.isArray(b.multiplayerOrders)?b.multiplayerOrders:[]).slice(0,20).map(p=>({name:clean(p.name,24),countryId:clean(p.countryId,90),order:clean(p.order,4000)})).filter(p=>p.order);if(multiplayerOrders.length)prompt+='\n\nСЕТЕВЫЕ ПРИКАЗЫ УЧАСТНИКОВ (каждый приказ относится только к указанной стране; не смешивай государства и не приписывай их действия стране ведущего):\n'+JSON.stringify(multiplayerOrders);
   const result=parse(await ask(worldSystem,prompt,3000));
   result.playerReport=clean(result.playerReport,9000);
@@ -206,7 +206,7 @@ app.post('/api/rooms/:code/begin',(req,res)=>{
 app.post('/api/rooms/:code/complete',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player||!player.host)return res.status(403).json({error:'Только ведущий может завершить расчёт.'});
  if(room.phase!=='resolving')return res.status(409).json({error:'Комната не находится в режиме расчёта.'});
- const snapshot=b.snapshot;if(!snapshot||typeof snapshot!=='object'||JSON.stringify(snapshot).length>1800000)return res.status(400).json({error:'Некорректный или слишком большой снимок кампании.'});
+ const snapshot=b.snapshot;if(!snapshot||typeof snapshot!=='object'||JSON.stringify(snapshot).length>7500000)return res.status(400).json({error:'Некорректный или слишком большой снимок кампании.'});
  room.snapshot=snapshot;room.turn++;room.weeks=Math.max(1,Math.min(52,Number(b.weeks)||1));room.phase='lobby';room.players.forEach(p=>{p.ready=false;p.order=''});room.revision++;res.json({ok:true,room:publicRoom(room)});
 });
 app.post('/api/rooms/:code/abort',(req,res)=>{
