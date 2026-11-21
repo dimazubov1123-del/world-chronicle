@@ -82,7 +82,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
    return out;
   });
   result.events=(Array.isArray(result.events)?result.events:[]).filter(e=>e&&e.title&&e.description&&(!e.visibility||e.visibility==='public')).slice(0,12).map(e=>({category:clean(e.category,32),title:clean(e.title,180),description:clean(e.description,1800),visibility:'public'}));
-  result.actions=(Array.isArray(result.actions)?result.actions:[]).filter(a=>a&&allowed.has(a.countryId)&&allowed.has(a.targetCountryId)&&['relation','treaty','war'].includes(a.type)).slice(0,80).map(a=>({countryId:a.countryId,type:a.type,targetCountryId:a.targetCountryId,delta:Math.max(-8,Math.min(8,Number(a.delta)||0))}));
+  result.actions=(Array.isArray(result.actions)?result.actions:[]).filter(a=>a&&allowed.has(a.countryId)&&(allowed.has(a.targetCountryId)||a.targetCountryId===world.player.id)&&['relation','treaty','war'].includes(a.type)).slice(0,80).map(a=>({countryId:a.countryId,type:a.type,targetCountryId:a.targetCountryId,delta:Math.max(-8,Math.min(8,Number(a.delta)||0))}));
   result.worldSummary=clean(result.worldSummary,5000);
   result.advisor=clean(result.advisor,3000);
   result.coverage={requested:allowed.size,returned:result.countryReports.length};
