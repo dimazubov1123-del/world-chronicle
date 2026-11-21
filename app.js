@@ -46,7 +46,7 @@ function selectCountry(id,feature,displayName,displayFlag){
  const base=countries[id]||{name:displayName||id,capital:'Не определена',flag:displayFlag||'🏳️',population:'—',economy:'Нет данных',stability:50,military:'—'};
  const c={...base,name:displayName||base.name,flag:displayFlag||base.flag};
  state.selected=id;state.inspectedCountry=id;
- $('country-name').textContent=c.name;$('country-capital').textContent='Столица: '+c.capital;$('country-flag').textContent=c.flag;
+ $('country-name').textContent=c.name;$('country-capital').textContent='Столица: '+c.capital;$('country-flag').innerHTML=wcFlagImg(getCountryInfo(feature||countryMeta.find(x=>x.info.id===id)?.feature||{}).code||'',''+c.name,'wc-main-flag');
  $('population').textContent=c.population;$('economy').textContent=c.economy;$('stability').textContent=c.stability+'%';$('military').textContent=c.military;
  $('map-hint').textContent='Выбрано государство: '+c.name;
  if(state.geoLayer)state.geoLayer.setStyle(styleFeature);
@@ -66,7 +66,7 @@ function openCountryProfile(id,feature,info){
  const drawer=document.getElementById('pax-drawer'),content=document.getElementById('pax-drawer-content'),title=document.getElementById('pax-drawer-title');
  if(!drawer||!content)return;
  const p=feature?.properties||{},base=countries[id]||{},name=info?.name||base.name||id,flag=info?.flag||base.flag||'🏳️';
- const relation=Number(state.relations?.[id]||0),relationLabel=relation>=50?'Союзные':relation>=15?'Дружественные':relation<=-40?'Напряжённые':'Нейтральные';
+ const flagCode=info?.code||getCountryInfo(feature||{}).code||'';const relation=Number(state.relations?.[id]||0),relationLabel=relation>=50?'Союзные':relation>=15?'Дружественные':relation<=-40?'Напряжённые':'Нейтральные';
  const pop=Number(p.POP_EST),gdp=Number(p.GDP_MD_EST),region=p.REGION_UN||p.REGION_WB||p.CONTINENT||'';
  const popText=pop>0?(pop>=1e9?(pop/1e9).toFixed(2).replace('.',',')+' млрд':(pop/1e6).toFixed(1).replace('.',',')+' млн'):base.population||'Нет данных';
  const gdpText=gdp>0?'$ '+(gdp/1000).toLocaleString('ru-RU',{maximumFractionDigits:1})+' млрд':base.economy||'Нет данных';
@@ -75,7 +75,7 @@ function openCountryProfile(id,feature,info){
  const isPlayer=id===state.selected;
  title.textContent='Государство · '+name;
  drawer.classList.add('country-open');drawer.classList.remove('hidden');
- content.innerHTML='<div class="wc-country-hero"><span class="wc-country-flag">'+flag+'</span><div class="wc-country-heading"><span class="wc-country-kicker">'+(isPlayer?'УПРАВЛЯЕМОЕ ГОСУДАРСТВО':'ГОСУДАРСТВО МИРА')+'</span><h2>'+escCountryHtml(name)+'</h2><small>'+escCountryHtml(p.FORMAL_EN||p.TYPE||'Суверенное государство')+'</small></div></div>'+
+ content.innerHTML='<div class="wc-country-hero"><span class="wc-country-flag">'+wcFlagImg(flagCode,name,'wc-profile-flag')+'</span><div class="wc-country-heading"><span class="wc-country-kicker">'+(isPlayer?'УПРАВЛЯЕМОЕ ГОСУДАРСТВО':'ГОСУДАРСТВО МИРА')+'</span><h2>'+escCountryHtml(name)+'</h2><small>'+escCountryHtml(p.FORMAL_EN||p.TYPE||'Суверенное государство')+'</small></div></div>'+
  '<div class="wc-country-facts"><div><small>СТОЛИЦА</small><b>'+escCountryHtml(capital)+'</b></div><div><small>НАСЕЛЕНИЕ</small><b>'+escCountryHtml(popText)+'</b></div><div><small>ЭКОНОМИКА</small><b>'+escCountryHtml(gdpText)+'</b></div><div><small>РЕГИОН</small><b>'+escCountryHtml(region||'Нет данных')+'</b></div></div>'+
  '<div class="wc-country-relations"><span><small>ОТНОШЕНИЯ С ВАШЕЙ СТРАНОЙ</small><b>'+relationLabel+'</b></span><strong>'+ (relation>0?'+':'')+relation+'</strong></div>'+
  '<div class="wc-country-actions">'+(isPlayer?'<button class="pax-secondary" id="wc-country-own">Это ваша страна</button>':'<button class="pax-primary" id="wc-country-diplomacy">✦ Дипломатические действия</button><button class="pax-secondary" id="wc-country-chat">☏ Открыть переговоры</button>')+'</div>'+
