@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261122-fix1">
 </head>
 <body>
   <div class="app-shell">
@@ -101,8 +101,8 @@
   <div class="event-overlay hidden" id="event-overlay" role="dialog" aria-modal="true" aria-labelledby="event-heading"><section class="event-window"><div class="event-topline"><span>WORLD CHRONICLE</span><span id="event-date">1 января 1936 · ГОСУДАРСТВО</span></div><div class="event-art"><div class="event-art-grid"></div><div class="event-emblem" id="event-emblem">§</div><div class="event-art-caption">ВЕСТИ ГОСУДАРСТВА</div></div><div class="event-copy"><span class="eyebrow">ВАЖНОЕ СОБЫТИЕ</span><h2 id="event-heading">Событие</h2><p id="event-description"></p><div class="event-details" id="event-details" hidden></div><button class="event-continue" id="event-continue">ПРОДОЛЖИТЬ <span>→</span></button></div></section></div><div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal"><button class="modal-close" id="modal-close">×</button><span class="eyebrow">WORLD CHRONICLE</span><h2 id="modal-title">Выберите государство</h2><div id="modal-content"></div></section></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>window.WC_API_BASE = location.hostname.endsWith("github.io") ? "https://world-chronicle-production.up.railway.app" : location.origin;</script>
-  <script src="app.js"></script>
-  <script src="turn-system.js"></script>
+  <script src="app.js?v=20261122-fix1"></script>
+  <script src="turn-system.js?v=20261122-fix1"></script>
   <script src="warfare.js?v=20261122-fix1"></script>
   <script>
   // Startup safety net: the menu must remain usable even if a later game module throws.
