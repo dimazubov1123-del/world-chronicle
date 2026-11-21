@@ -742,6 +742,7 @@ function countryPicker(){openCountrySelection(false)}
    const result=await api().api('/api/ai/diplomacy','POST',{countryId,countryName,message,proposalType:type,isProposal,history,world:snapshot});
    localAIHistory.push({countryId,countryName,from:'Вы',text:message});
    localAIHistory.push({countryId,countryName,from:countryName,text:result.reply||'Правительство рассмотрит обращение.'});
+   if(!ss&&activeTab==='diplomacy')render();
    const status=result.proposalStatus||'pending',decision=result.decision||'none';
    if(ss){await request('/social/ai-message','POST',{toCountryId:countryId,countryName,message,reply:result.reply||'Правительство рассмотрит обращение.',isProposal,proposalType:type,title,decision,advisorMessage:result.advisorMessage||''})}
    if(ss){await refresh();render()}
