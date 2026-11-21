@@ -149,6 +149,7 @@ function normalizeSupport(){
 }
 function electionAction(action){
  const e=ensureElection(),p=partyById(e.playerParty);if(!p)return;
+ if(['results','government'].includes(e.phase)&&['rally','media','field','debate','promise'].includes(action)){alert('Избирательная кампания завершена. Эти действия будут доступны перед следующими выборами.');return}
  const actions={
   rally:{cost:6,boost:2.4,turnout:1.2,title:'Проведён предвыборный митинг',desc:'Партия встретилась с избирателями и представила программу.'},
   media:{cost:8,boost:2.1,turnout:.4,title:'Запущена информационная кампания',desc:'Рекламные материалы партии размещены в общенациональных СМИ.'},
@@ -291,4 +292,4 @@ $('political-view').onclick=()=>{if(state.geoLayer)state.geoLayer.setStyle(style
 $('help-btn').onclick=()=>modal('World Chronicle — справка','<p>Вы руководите государством в альтернативной исторической песочнице. Один ход равен одной неделе. Решения меняют казну, экономику, стабильность, престиж и военную мощь.</p><p>Кампания автоматически сохраняется в локальном хранилище этого браузера. Используйте разделы слева для управления страной.</p>');
 $('modal-close').onclick=closeModal;$('modal-backdrop').onclick=e=>{if(e.target===$('modal-backdrop'))closeModal()};
 document.addEventListener('click',e=>{const nav=e.target.closest('.nav-item');if(nav){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));nav.classList.add('active');const pages={overview:closeModal,diplomacy,economy,military,politics,elections};if(pages[nav.dataset.action])pages[nav.dataset.action]()}const a=e.target.closest('.action-card');if(a){if(a.dataset.action==='decree')decree();if(a.dataset.action==='speech')speech()}});
-load();ensureElection();if(!state.events.length)event('ПОЛИТИКА','Кампания готова к началу','Выберите направление развития государства и сделайте первый ход.');selectCountry(state.selected||'Russia');updateUI();
+load();ensureElection();if(state.regionsVisible){$('regions-toggle').classList.add('active');loadRegions()}if(!state.events.length)event('ПОЛИТИКА','Кампания готова к началу','Выберите направление развития государства и сделайте первый ход.');selectCountry(state.selected||'Russia');updateUI();
