@@ -225,21 +225,31 @@ function loadRegions(){
  $('map-hint').textContent='Загружаются административные границы регионов…';
  fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',{cache:'force-cache'})
   .then(r=>{if(!r.ok)throw Error('Regions unavailable');return r.json()})
-  .then(async data=>{
-    const supplements=[
-     ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],
-     ['BEL','Belgium'],['NLD','Netherlands'],['CHE','Switzerland'],['AUT','Austria'],['CZE','Czechia'],['SVK','Slovakia'],
-     ['SVN','Slovenia'],['HRV','Croatia'],['SRB','Serbia'],['MNE','Montenegro'],['ALB','Albania'],['MKD','North Macedonia'],
-     ['BIH','Bosnia and Herzegovina'],['EST','Estonia'],['LVA','Latvia'],['LTU','Lithuania'],['IRL','Ireland'],
-     ['DNK','Denmark'],['ISL','Iceland'],['CYP','Cyprus'],['BGR','Bulgaria'],['HUN','Hungary'],['ROU','Romania'],['PRT','Portugal'],['GRC','Greece'],['DEU','Germany'],['FRA','France'],['POL','Poland'],['UKR','Ukraine'],['ITA','Italy'],['ESP','Spain'],['GBR','United Kingdom'],['NOR','Norway'],['SWE','Sweden'],['FIN','Finland']
-    ];
+  .then(data=>{
+   regionData=data;window.__wcRegionData=data;regionIndex.clear();
+   const indexRegions=()=>{regionIndex.clear();for(const f of regionData.features||[]){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}};
+   indexRegions();regionsLoading=false;refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
+   $('map-hint').textContent='Основные регионы загружены. Детализируются административные границы Европы…';
+   const supplements=[
+    ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],
+    ['BEL','Belgium'],['NLD','Netherlands'],['CHE','Switzerland'],['AUT','Austria'],['CZE','Czechia'],['SVK','Slovakia'],
+    ['SVN','Slovenia'],['HRV','Croatia'],['SRB','Serbia'],['MNE','Montenegro'],['ALB','Albania'],['MKD','North Macedonia'],
+    ['BIH','Bosnia and Herzegovina'],['EST','Estonia'],['LVA','Latvia'],['LTU','Lithuania'],['IRL','Ireland'],
+    ['DNK','Denmark'],['ISL','Iceland'],['CYP','Cyprus'],['BGR','Bulgaria'],['HUN','Hungary'],['ROU','Romania'],['PRT','Portugal'],['GRC','Greece'],
+    ['DEU','Germany'],['FRA','France'],['POL','Poland'],['UKR','Ukraine'],['ITA','Italy'],['ESP','Spain'],['GBR','United Kingdom'],['NOR','Norway'],['SWE','Sweden'],['FIN','Finland']
+   ];
+   (async()=>{
     let boundaryIndex=[];
     try{const metaResponse=await fetch('https://www.geoboundaries.org/api/current/gbOpen/ALL/ADM1/',{cache:'force-cache'});if(metaResponse.ok)boundaryIndex=await metaResponse.json()}catch(e){}
     const extra=await Promise.all(supplements.map(async ([iso,admin])=>{try{const meta=boundaryIndex.find(x=>x.boundaryISO===iso&&x.boundaryType==='ADM1');const url=meta?.simplifiedGeometryGeoJSON;if(!url)return {admin,features:[]};const r=await fetch(url,{cache:'force-cache'});if(!r.ok)return {admin,features:[]};const g=await r.json();return {admin,features:(g.features||[]).map(f=>({...f,properties:{...(f.properties||{}),admin,name:(f.properties||{}).shapeName||(f.properties||{}).name||admin,geonunit:admin,iso_a3:iso}}))}}catch(e){return {admin,features:[]}}}));
+    return extra;
+   })().then(extra=>{
     const replaced=new Set(extra.filter(x=>x.features.length).map(x=>x.admin));
-    data.features=(data.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).geonunit||''))).concat(...extra.map(x=>x.features));
-    regionData=data;window.__wcRegionData=data;window.dispatchEvent(new Event('wc-regions-loaded'));for(const f of data.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}regionsLoading=false;refreshRegions();$('map-hint').textContent='Подробные административные регионы загружены по всему миру.'})
-  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
+    regionData.features=(regionData.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).geonunit||''))).concat(...extra.map(x=>x.features));
+    window.__wcRegionData=regionData;indexRegions();adjacencyCache.clear?.();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
+    $('map-hint').textContent='Подробные регионы мира и административные единицы Европы загружены.';
+   }).catch(()=>{$('map-hint').textContent='Основные регионы загружены; дополнительная детализация Европы недоступна.'});
+  })  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
 }
 if(window.L){
  map=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxZoom:8,preferCanvas:true,zoomSnap:1,zoomDelta:1,wheelDebounceTime:110,wheelPxPerZoomLevel:140,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false}).setView([24,12],2);
