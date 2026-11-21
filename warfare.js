@@ -264,7 +264,6 @@
   if(!map||!window.L)return;
   ensureLayers();bindRegionLayer();rebuildIndex();syncUnits();
   document.getElementById('wc-war-room-btn')?.addEventListener('click',openWarRoom);
-  document.getElementById('wc-front-toggle')?.addEventListener('click',toggleFronts);
   document.getElementById('pax-own-country')?.addEventListener('click',()=>syncUnits());
   window.addEventListener('wc-regions-loaded',()=>{adjacencyCache.clear();rebuildIndex();bindRegionLayer();armies().forEach(u=>unitRegion(u));syncUnits()});
   document.getElementById('wc-front-toggle')?.classList.toggle('active',frontsVisible);
