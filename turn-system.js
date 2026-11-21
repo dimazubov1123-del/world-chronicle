@@ -84,6 +84,7 @@
    commandClarification=String(commandPlan?.clarification||result.commandClarification||'').trim();
    commandSummary=String(commandPlan?.summary||result.commandSummary||'').trim();
    moveDate(weeks);
+   window.WC_WAR?.advanceTurn?.();
    state.currentPeriod={turn:state.turn,startDate,endDate,label:periods[weeks]||weeks+' недель'};
    state.aiWorldState=state.aiWorldState||{countries:{},lastSummary:''};
    state.aiWorldState.countries=state.aiWorldState.countries||{};
