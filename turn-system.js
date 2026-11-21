@@ -49,7 +49,8 @@
     multiplayerOrders=start.orders||[];roomTurn=roomData.room.turn;begun=true;
    }catch(e){alert(e.message);return}
   }
-  const orders=pendingText();
+  let orders=pendingText();
+  if(net&&!orders.length){const own=multiplayerOrders.find(p=>p.countryId===net.countryId);if(own?.order)orders=[own.order]}
   const order=orders.length?orders.join('\n\n'):'Игрок не отдал отдельного приказа. Продолжи естественное развитие государства и мира.';
   const startDate=dateText();
   const end=new Date(state.year,state.month,state.day);end.setDate(end.getDate()+weeks*7);
@@ -59,7 +60,7 @@
   const commandContext=orders.length?window.WC_WAR?.commandSnapshot?.():null;
   setBusy(true);
   try{
-   const result=await window.WC_AI.request('world-turn',{...base,commandContext,multiplayerOrders:multiplayerOrders.filter(p=>p.order),date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
+   const result=await window.WC_AI.request('world-turn',{...base,commandContext,multiplayerOrders:multiplayerOrders.filter(p=>p.order&&p.countryId!==net?.countryId),date:startDate,startDate,endDate,elapsedWeeks:weeks,playerOrder:order});
    commandOperations=Array.isArray(result.commandOperations)?result.commandOperations:[];
    commandClarification=String(result.commandClarification||'').trim();
    commandSummary=String(result.commandSummary||'').trim();
