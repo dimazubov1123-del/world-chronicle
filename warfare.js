@@ -225,19 +225,19 @@
  function animateUnit(unit,from,to,feature,capture=false){
   if(!window.L||!map||!Array.isArray(from)||!Array.isArray(to)){syncUnits();return}
   const marker=L.marker(from,{pane:'unitsPane',interactive:false,icon:L.divIcon({className:'wc-army-marker wc-army-moving',html:'<span>⚑</span><small>'+esc(unit.name)+'</small>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map);
-  const started=performance.now(),duration=1050;
+  const trail=L.polyline([from,to],{pane:'frontPane',color:'#f5d58f',weight:6,opacity:.9,dashArray:'5 7',className:'wc-movement-trail',interactive:false}).addTo(map);const started=performance.now(),duration=2800;
   const tick=now=>{
    const t=Math.min(1,(now-started)/duration),ease=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
    marker.setLatLng([from[0]+(to[0]-from[0])*ease,from[1]+(to[1]-from[1])*ease]);
    if(t<1)requestAnimationFrame(tick);
-   else{map.removeLayer(marker);syncUnits();if(capture)flashCapture(feature)}
+   else{map.removeLayer(marker);map.removeLayer(trail);syncUnits();if(capture)flashCapture(feature)}
   };
   requestAnimationFrame(tick);
  }
  function animateBattle(feature,won){
   if(!window.L||!map||!feature)return;
   const point=center(feature),ring=L.circleMarker(point,{pane:'unitsPane',radius:7,color:won?'#f4d58d':'#e56b61',weight:3,opacity:.95,fillColor:won?'#e5b85e':'#b83f3a',fillOpacity:.22,interactive:false}).addTo(map);
-  const started=performance.now(),duration=1150;
+  const started=performance.now(),duration=2200;
   const tick=now=>{
    const t=Math.min(1,(now-started)/duration),wave=Math.sin(t*Math.PI);
    ring.setRadius(7+wave*25);ring.setStyle({opacity:1-t,fillOpacity:.28*(1-t),weight:3+wave*2});
@@ -270,11 +270,11 @@
   points.unshift(start);
   if(points.length<2){syncUnits();return}
   const marker=L.marker(points[0],{pane:'unitsPane',interactive:false,icon:L.divIcon({className:'wc-army-marker wc-army-moving',html:'<span>⚑</span><small>'+esc(unit.name)+'</small>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map);
-  const duration=Math.min(2400,Math.max(700,(points.length-1)*420)),started=performance.now(),segments=points.length-1;
+  const trail=L.polyline(points,{pane:'frontPane',color:'#f5d58f',weight:7,opacity:.9,dashArray:'6 8',className:'wc-movement-trail',interactive:false}).addTo(map);const duration=Math.min(7000,Math.max(2800,(points.length-1)*1050)),started=performance.now(),segments=points.length-1;
   const tick=now=>{
    const t=Math.min(1,(now-started)/duration),scaled=t*segments,index=Math.min(segments-1,Math.floor(scaled)),part=t>=1?1:scaled-index,ease=part<.5?2*part*part:1-Math.pow(-2*part+2,2)/2;
    const a=points[index],b=points[index+1];marker.setLatLng([a[0]+(b[0]-a[0])*ease,a[1]+(b[1]-a[1])*ease]);
-   if(t<1)requestAnimationFrame(tick);else{map.removeLayer(marker);syncUnits()}
+   if(t<1)requestAnimationFrame(tick);else{map.removeLayer(marker);map.removeLayer(trail);syncUnits()}
   };
   requestAnimationFrame(tick);
  }
