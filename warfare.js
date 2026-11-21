@@ -114,7 +114,7 @@
   if(!regionLayer||!window.L)return;
   regionLayer.on('layeradd',e=>{
    const layer=e.layer;if(!layer||layer.__wcWarBound||!layer.feature)return;layer.__wcWarBound=true;
-   layer.on('click',evt=>{L.DomEvent.stopPropagation(evt);openRegion(layer.feature)});
+   layer.on('click',evt=>{if(evt.originalEvent)L.DomEvent.stopPropagation(evt.originalEvent);openRegion(layer.feature)});
   });
   regionLayer.setStyle(styleRegion);
  }
