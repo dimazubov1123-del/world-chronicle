@@ -104,7 +104,7 @@
  function initialRegion(countryId,latlng){
   const features=regionFeatures().filter(f=>admin(f.properties||{})===countryId);
   if(!features.length)return null;
-  const found=features.find(f=>pointInFeature([latlng[1],latlng[0]],f));if(found)return found;
+  const found=features.find(f=>pointInFeature(latlng,f));if(found)return found;
   let best=features[0],bestD=Infinity;
   features.forEach(f=>{const c=center(f),d=(c[0]-latlng[0])**2+(c[1]-latlng[1])**2;if(d<bestD){bestD=d;best=f}});
   return best;
@@ -211,7 +211,7 @@
   const p=feature.properties||{},regionNameValue=name(p),targetKey=fkey(feature),defense=6+Math.floor(Math.random()*7),attack=unit.strength+Math.floor(Math.random()*8);
   const won=attack>=defense+5||Math.random()<Math.max(.18,Math.min(.88,.38+(unit.strength-defense)*.045));
   if(won){
-   occupied()[targetKey]={admin:enemyAdmin,name:regionNameValue,controller:state.selected,turn:state.turn};
+   occupied()[targetKey]={admin:admin(p),name:regionNameValue,controller:state.selected,turn:state.turn};
    unit.regionKey=targetKey;unit.position=center(feature);unit.location=regionNameValue;unit.strength=Math.max(1,unit.strength-1);
    event('ВОЕННОЕ ДЕЛО','Захвачен регион: '+regionNameValue,'Войска заняли регион «'+regionNameValue+'», ранее находившийся под контролем государства '+((countries[enemyAdmin]||{}).name||enemyAdmin)+'.',{importance:'major',location:regionNameValue,background:'В рамках продолжающейся войны командование начало наступательную операцию на сопредельном участке фронта.',development:'Соединение '+unit.name+' продвинулось из соседнего региона, преодолело сопротивление и установило контроль над административной территорией. Линия соприкосновения переместилась на новый рубеж.',consequences:'Регион перешёл под военный контроль '+((countries[state.selected]||{}).name||state.selected)+'. Дальнейшее продвижение возможно только в соседние регионы.',reaction:'Сведения о реакции иностранных государств появятся в хронике по мере поступления публичных заявлений.'});
   }else{
@@ -227,19 +227,19 @@
  }
  function openRegion(feature){
   if(!featureByKey.size)rebuildIndex();
-  const p=feature.properties||{},adminId=admin(p),regionNameValue=name(p),occ=occupied()[fkey(feature)],ctrl=occ?.controller||adminId,own=ctrl===state.selected,foreign=!!adminId&&!own,war=foreign&&atWar(state.selected,adminId),ownerName=(countries[adminId]||{}).name||adminId||'Не определено',unit=armies().find(x=>x.id===selectedUnitId);
+  const p=feature.properties||{},adminId=admin(p),regionNameValue=name(p),occ=occupied()[fkey(feature)],ctrl=occ?.controller||adminId,own=ctrl===state.selected,foreign=!!ctrl&&!own,war=foreign&&atWar(state.selected,ctrl),ownerName=(countries[adminId]||{}).name||adminId||'Не определено',controllerName=(countries[ctrl]||{}).name||ctrl||ownerName,unit=armies().find(x=>x.id===selectedUnitId);
   const adjacentToUnit=unit?canEnter(unit,feature):false;
   let actions='';
   if(own){
    actions='<p class="wc-muted">Регион находится под вашим контролем.</p>'+(unit&&!adjacentToUnit?'<p class="wc-muted">Выбранная дивизия не имеет прямого сухопутного доступа к этому региону.</p>':'')+(armies().length?'<select id="wc-region-unit">'+unitOptions()+'</select><button class="wc-primary wc-region-action" id="wc-move-unit">Передислоцировать из соседнего региона</button>':'');
   }else if(foreign){
-   actions=war?'<p class="wc-muted">Идёт война. Наступление разрешено только из непосредственно соседнего региона.</p>'+(armies().length?'<select id="wc-region-unit">'+unitOptions()+'</select><button class="wc-danger wc-region-action" id="wc-attack-region">Атаковать соседний регион</button>':'<p class="wc-muted">Сначала сформируйте дивизию в военном командовании.</p>'):'<p class="wc-muted">Регион принадлежит другому государству.</p><button class="wc-danger wc-region-action" id="wc-region-declare">Объявить войну '+esc(ownerName)+'</button>';
+   actions=war?'<p class="wc-muted">Идёт война. Наступление разрешено только из непосредственно соседнего региона.</p>'+(armies().length?'<select id="wc-region-unit">'+unitOptions()+'</select><button class="wc-danger wc-region-action" id="wc-attack-region">Атаковать соседний регион</button>':'<p class="wc-muted">Сначала сформируйте дивизию в военном командовании.</p>'):'<p class="wc-muted">Регион находится под контролем другого государства.</p><button class="wc-danger wc-region-action" id="wc-region-declare">Объявить войну '+esc(controllerName)+'</button>';
   }
   const controlName=(countries[ctrl]||{}).name||ctrl;
   modal('Регион · '+regionNameValue,'<div class="wc-region-card"><div class="wc-region-owner"><span>◈</span><div><small>АДМИНИСТРАТИВНАЯ ПРИНАДЛЕЖНОСТЬ</small><b>'+esc(ownerName)+'</b></div></div><div class="wc-region-facts"><div><small>РЕГИОН</small><b>'+esc(regionNameValue)+'</b></div><div><small>ВОЕННЫЙ КОНТРОЛЬ</small><b>'+esc(controlName)+'</b></div></div>'+actions+'</div>');
-  document.getElementById('wc-region-declare')?.addEventListener('click',()=>{if(!atWar(state.selected,adminId)){wars().push(warKey(state.selected,adminId));event('ВОЕННОЕ ДЕЛО','Объявлена война: '+ownerName,'Правительство объявило войну государству '+ownerName+'.',{importance:'major',background:'Дипломатический кризис перешёл в открытое вооружённое противостояние.',development:'Вооружённые силы приведены в боевую готовность. Начинается военная кампания.',consequences:'Военные операции против государства '+ownerName+' теперь доступны при наличии сопредельных позиций.',reaction:'Международная реакция будет отражена в мировой хронике.'});save();}closeModal();openRegion(feature)});
+  document.getElementById('wc-region-declare')?.addEventListener('click',()=>{if(!atWar(state.selected,ctrl)){wars().push(warKey(state.selected,ctrl));event('ВОЕННОЕ ДЕЛО','Объявлена война: '+controllerName,'Правительство объявило войну государству '+controllerName+'.',{importance:'major',background:'Дипломатический кризис перешёл в открытое вооружённое противостояние.',development:'Вооружённые силы приведены в боевую готовность. Начинается военная кампания.',consequences:'Военные операции против государства '+ownerName+' теперь доступны при наличии сопредельных позиций.',reaction:'Международная реакция будет отражена в мировой хронике.'});save();}closeModal();openRegion(feature)});
   document.getElementById('wc-move-unit')?.addEventListener('click',()=>{const id=document.getElementById('wc-region-unit')?.value||selectedUnitId,u=armies().find(x=>x.id===id);if(!u)return alert('Выберите соединение.');selectedUnitId=id;moveUnit(u,feature)});
-  document.getElementById('wc-attack-region')?.addEventListener('click',()=>{const id=document.getElementById('wc-region-unit')?.value||selectedUnitId,u=armies().find(x=>x.id===id);if(!u)return alert('Выберите соединение.');selectedUnitId=id;attackRegion(u,adminId,feature)});
+  document.getElementById('wc-attack-region')?.addEventListener('click',()=>{const id=document.getElementById('wc-region-unit')?.value||selectedUnitId,u=armies().find(x=>x.id===id);if(!u)return alert('Выберите соединение.');selectedUnitId=id;attackRegion(u,ctrl,feature)});
  }
  function bindRegionLayer(){
   if(!regionLayer||!window.L)return;
