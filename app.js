@@ -220,6 +220,21 @@ function refreshRegions(){
  if(!state.regionsVisible||!regionData)return;
  if(regionData?.features?.length)regionLayer.addData(regionData.features);
 }
+function ensureCountryRegionCoverage(){
+ if(!regionData||!Array.isArray(window.__wcCountryFeatures)||!window.__wcCountryFeatures.length)return;
+ const known=new Set((regionData.features||[]).map(f=>String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).sovereignt||(f.properties||{}).geonunit||(f.properties||{}).shapeGroup||'')));
+ let added=false;
+ for(const countryFeature of window.__wcCountryFeatures){
+  const info=getCountryInfo(countryFeature);if(!info?.id||known.has(info.id))continue;
+  regionData.features.push({type:'Feature',properties:{admin:info.id,name:info.name||info.id,geonunit:info.id,synthetic:true},geometry:countryFeature.geometry});
+  known.add(info.id);added=true;
+ }
+ if(added){
+  window.__wcRegionData=regionData;regionIndex.clear();
+  for(const f of regionData.features){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}
+  refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
+ }
+}
 function loadRegions(){
  if(!state.regionsVisible||regionData||regionsLoading)return;regionsLoading=true;
  $('map-hint').textContent='Загружаются административные границы регионов…';
@@ -228,7 +243,7 @@ function loadRegions(){
   .then(data=>{
    regionData=data;window.__wcRegionData=data;regionIndex.clear();
    const indexRegions=()=>{regionIndex.clear();for(const f of regionData.features||[]){const p=f.properties||{},admin=p.admin||p.ADMIN||p.sovereignt||p.geonunit||p.shapeGroup;if(!admin)continue;if(!regionIndex.has(admin))regionIndex.set(admin,[]);regionIndex.get(admin).push(f)}};
-   indexRegions();regionsLoading=false;refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
+   indexRegions();regionsLoading=false;refreshRegions();ensureCountryRegionCoverage();window.dispatchEvent(new Event('wc-regions-loaded'));
    $('map-hint').textContent='Основные регионы загружены. Детализируются административные границы Европы…';
    const supplements=[
     ['AND','Andorra'],['LIE','Liechtenstein'],['LUX','Luxembourg'],['MCO','Monaco'],['SMR','San Marino'],['MLT','Malta'],
@@ -247,7 +262,7 @@ function loadRegions(){
    })().then(extra=>{
     const replaced=new Set(extra.filter(x=>x.features.length).map(x=>x.admin));
     regionData.features=(regionData.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).geonunit||''))).concat(...extra.map(x=>x.features));
-    window.__wcRegionData=regionData;indexRegions();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
+    window.__wcRegionData=regionData;indexRegions();ensureCountryRegionCoverage();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
     $('map-hint').textContent='Подробные регионы мира и административные единицы Европы загружены.';
    }).catch(()=>{$('map-hint').textContent='Основные регионы загружены; дополнительная детализация Европы недоступна.'});
   })  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
@@ -267,6 +282,7 @@ if(window.L){
     const info=getCountryInfo(feature),bounds=layer.getBounds();if(bounds&&bounds.isValid())countryMeta.push({info,bounds,feature});
     layer.on('click',()=>inspectCountry(info.id,feature,info.name,info.flag));
    }}).addTo(map);
+   ensureCountryRegionCoverage();
    $('map-hint').textContent='Выберите государство. Цветом обозначены территории стран; регионы и города открываются при приближении.';
    initCityMarkers();updateCityVisibility();
   })
