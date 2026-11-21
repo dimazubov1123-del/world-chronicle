@@ -180,6 +180,8 @@
   return '<div class="wc-war-room"><div class="wc-war-stats"><div><small>ВОЙНЫ</small><b>'+wars().length+'</b></div><div><small>СОЕДИНЕНИЯ</small><b>'+armies().length+'</b></div><div><small>ЗАНЯТЫЕ РЕГИОНЫ</small><b>'+occupiedCount+'</b></div></div>'+
    '<h3>Объявление войны</h3><p>Объявление войны открывает военные действия, но продвижение возможно только по соседним регионам.</p><div class="wc-war-form"><select id="wc-war-target"><option value="">Выберите противника</option>'+targets.map(x=>'<option value="'+esc(x.info.id)+'">'+esc(x.info.name)+'</option>').join('')+'</select><button class="wc-danger" id="wc-declare-war">Объявить войну</button></div>'+
    '<h3>Формирование войск</h3><div class="wc-war-form"><input id="wc-unit-name" maxlength="45" placeholder="Название соединения" value="1-я дивизия"><select id="wc-unit-type"><option value="Пехотная дивизия">Пехотная дивизия · 10 тыс. · ₽4 млрд</option><option value="Моторизованная дивизия">Моторизованная дивизия · 8 тыс. · ₽6 млрд</option><option value="Танковая дивизия">Танковая дивизия · 7 тыс. · ₽8 млрд</option><option value="Воздушно-десантная дивизия">ВДВ · 6 тыс. · ₽7 млрд</option></select><button class="wc-primary" id="wc-create-unit">Сформировать</button></div><p class="wc-muted">Дивизия размещается в регионе столицы. Один приказ на карте перемещает её в один соседний регион.</p>'+
+   '<h3>Свободный приказ штабу</h3><p class="wc-muted">Пишите своими словами: «1-я танковая дивизия проводит учения в Смоленске» или «Перебросить корпус к границе и наступать на Вильнюс».</p><textarea id="wc-free-military-order" rows="4" maxlength="3000" placeholder="Текст приказа верховного командования…"></textarea><button class="wc-primary" id="wc-queue-military-order">Передать приказ на следующий ход</button>'+
+   '<h3>Активные учения</h3>'+(exercises().filter(x=>x.status==='active').map(x=>'<div class="wc-unit-row"><span class="wc-unit-flag">✣</span><span><b>'+esc(x.name)+'</b><small>'+esc(x.unitName)+' · '+esc(x.exerciseType)+' · до хода '+x.endsTurn+'</small></span></div>').join('')||'<p class="wc-muted">Активных учений нет.</p>')+
    '<h3>Ваши соединения</h3>'+troops+'<h3>Текущие войны</h3>'+(warsList||'<p class="wc-muted">Ваша страна пока не участвует в войнах.</p>')+'</div>';
  }
  function bindWarRoom(){
@@ -203,6 +205,12 @@
    updateUI();syncUnits();save();openWarRoom();
   });
   document.querySelectorAll('[data-select-unit]').forEach(b=>b.onclick=()=>{selectedUnitId=b.dataset.selectUnit;syncUnits();openWarRoom()});
+  document.getElementById('wc-queue-military-order')?.addEventListener('click',()=>{
+   const input=document.getElementById('wc-free-military-order'),value=input?.value.trim();
+   if(!value)return alert('Напишите приказ для штаба.');
+   if(!window.WC_QUEUE_ORDER?.(value))return;
+   closeModal();alert('Приказ передан в очередь. Нажмите «Продолжить время», чтобы штаб обработал его.');
+  });
  }
  function openWarRoom(){modal('Военное командование',warRoomHtml());bindWarRoom()}
  function canEnter(unit,feature){
