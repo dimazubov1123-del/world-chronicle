@@ -310,7 +310,7 @@ app.post('/api/rooms/:code/social/ai-message',(req,res)=>{
 app.post('/api/rooms/:code/social/apply',(req,res)=>{
  const room=findRoom(req,res);if(!room)return;const b=req.body||{},p=socialPlayer(room,b.token,res);if(!p)return;
  if(!p.host)return res.status(403).json({error:'Только ведущий применяет дипломатические соглашения к общему состоянию.'});
- const ready=(room.proposals||[]).filter(x=>x.status==='accepted'&&!x.applied);
+ const ready=(room.proposals||[]).filter(x=>['accepted','rejected','counteroffer'].includes(x.status)&&!x.applied);
  ready.forEach(x=>{x.applied=true;x.appliedAt=new Date().toISOString()});
  res.json({proposals:ready});
 });
