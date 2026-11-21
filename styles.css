@@ -347,3 +347,25 @@ body.wc-news-open{overflow:hidden}
  #wc-news-show-all{padding:0 8px;font-size:7px}
  .wc-news-footer{font-size:6px}
 }
+
+/* Natural-language command centre */
+.wc-order-intro{padding:13px 14px;margin:0 0 11px;background:linear-gradient(135deg,#1b2a3b,#121e2b);border:1px solid #34465b;border-left:2px solid var(--gold);border-radius:6px}
+.wc-order-kicker{display:block;color:var(--gold);font-size:8px;font-weight:800;letter-spacing:1.5px;margin-bottom:7px}
+.wc-order-intro>b{display:block;color:#edf2f7;font:800 13px Manrope}
+.wc-order-intro p{margin:7px 0 0;color:#9baabd;font-size:10px;line-height:1.55}
+.wc-order-input{width:100%;min-height:116px;resize:vertical;padding:12px;background:#0c1622;border:1px solid #35475c;border-radius:5px;color:#edf2f7;font:11px/1.6 'DM Sans',sans-serif;outline:none}
+.wc-order-input:focus{border-color:#b99a61;box-shadow:0 0 0 2px #b99a611c}
+.wc-order-examples{display:flex;flex-wrap:wrap;gap:6px;margin:11px 0}
+.wc-order-examples>span{width:100%;font-size:8px;letter-spacing:1.3px;color:#8494a8;font-weight:800;margin-bottom:2px}
+.wc-order-examples button{border:1px solid #2c4056;background:#172638;color:#c6d0dc;border-radius:4px;padding:7px 8px;font:9px 'DM Sans',sans-serif;cursor:pointer}
+.wc-order-examples button:hover{border-color:#a88d5b;color:#f0d9a8;background:#202d3d}
+.wc-order-actions{display:flex;gap:7px;align-items:center}
+.wc-order-actions button{min-height:35px}
+.wc-order-actions #pax-send{flex:1}
+.wc-order-footnote{margin-top:10px;color:#74869a;font-size:8px;line-height:1.5;letter-spacing:.5px}
+.wc-army-moving{filter:drop-shadow(0 0 9px #f4d58d)!important;z-index:1000!important}
+.wc-army-moving>span{animation:wc-flag-bob .55s ease-in-out infinite alternate}
+.wc-capture-flash{filter:drop-shadow(0 0 7px #ffd98a)}
+@keyframes wc-flag-bob{from{transform:translateY(0) scale(1)}to{transform:translateY(-4px) scale(1.12)}}
+.wc-order-examples button:active{transform:translateY(1px)}
+@media(max-width:720px){.wc-order-input{min-height:104px}.wc-order-examples button{font-size:8px;padding:7px 6px}.wc-order-intro{padding:11px}}
