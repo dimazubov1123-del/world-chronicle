@@ -239,9 +239,9 @@
   while(cursor&&cursor!==startKey){path.unshift(nodes.get(cursor));cursor=previous.get(cursor)}
   return path;
  }
- function animateRoute(unit,features){
+ function animateRoute(unit,features,fromPosition){
   if(!window.L||!map||!features?.length){syncUnits();return}
-  const points=features.map(center),start=Array.isArray(unit.position)?unit.position.slice():points[0];
+  const points=features.map(center),start=Array.isArray(fromPosition)?fromPosition.slice():points[0];
   points.unshift(start);
   if(points.length<2){syncUnits();return}
   const marker=L.marker(points[0],{pane:'unitsPane',interactive:false,icon:L.divIcon({className:'wc-army-marker wc-army-moving',html:'<span>⚑</span><small>'+esc(unit.name)+'</small>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map);
@@ -355,7 +355,7 @@
       if(op.type==='move'){
        if(ctrl!==state.selected){results.push('Передислокация отменена: регион не находится под вашим контролем.');return}
        const path=friendlyPath(from,feature);if(!path){results.push('Передислокация отменена: безопасный сухопутный маршрут через контролируемые регионы не найден.');return}
-       const prev=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(feature.properties||{});animateRoute(unit,[from,...path]);
+       const prev=Array.isArray(unit.position)?unit.position.slice():center(from);unit.regionKey=fkey(feature);unit.position=center(feature);unit.location=name(feature.properties||{});animateRoute(unit,[from,...path],prev);
        results.push(unit.name+' передислоцировано в '+unit.location+' по маршруту из '+path.length+' регионов.');event('ВОЕННОЕ ДЕЛО','Передислокация: '+unit.name,'Соединение прошло по безопасному сухопутному маршруту и прибыло в регион '+unit.location+'.',{location:unit.location});
       }else{
        if(!adjacent(from).some(x=>fkey(x.feature)===fkey(feature))){results.push('Наступление отменено: цель не граничит с текущей позицией соединения.');return}
