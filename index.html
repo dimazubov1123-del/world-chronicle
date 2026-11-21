@@ -96,7 +96,7 @@
   </section>
   <div class="event-overlay hidden" id="event-overlay" role="dialog" aria-modal="true" aria-labelledby="event-heading"><section class="event-window"><div class="event-topline"><span>WORLD CHRONICLE</span><span id="event-date">1 января 1936 · ГОСУДАРСТВО</span></div><div class="event-art"><div class="event-art-grid"></div><div class="event-emblem" id="event-emblem">§</div><div class="event-art-caption">ВЕСТИ ГОСУДАРСТВА</div></div><div class="event-copy"><span class="eyebrow">ВАЖНОЕ СОБЫТИЕ</span><h2 id="event-heading">Событие</h2><p id="event-description"></p><button class="event-continue" id="event-continue">ПРОДОЛЖИТЬ <span>→</span></button></div></section></div><div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal"><button class="modal-close" id="modal-close">×</button><span class="eyebrow">WORLD CHRONICLE</span><h2 id="modal-title">Выберите государство</h2><div id="modal-content"></div></section></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>window.WC_API_BASE = "https://world-chronicle-production.up.railway.app";</script>
+  <script>window.WC_API_BASE = location.hostname.endsWith("github.io") ? "https://world-chronicle-production.up.railway.app" : location.origin;</script>
   <script src="app.js"></script>
 </body>
 </html>
