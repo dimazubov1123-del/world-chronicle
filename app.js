@@ -246,7 +246,7 @@ function loadRegions(){
    })().then(extra=>{
     const replaced=new Set(extra.filter(x=>x.features.length).map(x=>x.admin));
     regionData.features=(regionData.features||[]).filter(f=>!replaced.has(String((f.properties||{}).admin||(f.properties||{}).ADMIN||(f.properties||{}).geonunit||''))).concat(...extra.map(x=>x.features));
-    window.__wcRegionData=regionData;indexRegions();adjacencyCache.clear?.();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
+    window.__wcRegionData=regionData;indexRegions();refreshRegions();window.dispatchEvent(new Event('wc-regions-loaded'));
     $('map-hint').textContent='Подробные регионы мира и административные единицы Европы загружены.';
    }).catch(()=>{$('map-hint').textContent='Основные регионы загружены; дополнительная детализация Европы недоступна.'});
   })  .catch(()=>{regionsLoading=false;$('map-hint').textContent='Не удалось загрузить слой регионов. Основная карта работает.'});
