@@ -39,14 +39,14 @@
   if(busy)return;
   if(!window.WC_AI?.enabled?.()){alert('Не задан адрес AI-сервера. Откройте игру через Railway или проверьте подключение.');return}
   const net=window.WC_MULTIPLAYER?.session?.()||null;
-  let roomTurn=null,begun=false,multiplayerOrders=[];
+  let roomTurn=null,begun=false,multiplayerOrders=[],roomPlayers=[];
   if(net){
    try{
     const roomData=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'?token='+encodeURIComponent(net.token));
     if(!roomData.host){alert('В сетевой кампании время может продвигать только ведущий.');return}
     if(roomData.room.phase!=='lobby'||roomData.room.players.length<2||!roomData.room.players.every(p=>p.ready)){alert('Нельзя продолжить: дождитесь подключения минимум двух игроков и готовности каждого участника.');return}
     const start=await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/begin','POST',{token:net.token});
-    multiplayerOrders=start.orders||[];roomTurn=roomData.room.turn;begun=true;
+    multiplayerOrders=start.orders||[];roomPlayers=roomData.room.players||[];roomTurn=roomData.room.turn;begun=true;
    }catch(e){alert(e.message);return}
   }
   let orders=pendingText();
@@ -86,7 +86,7 @@
    if(result.playerReport)event('ДЕЙСТВИЯ ПРАВИТЕЛЬСТВА','Отчёт за период '+startDate+' — '+dateText(),String(result.playerReport).slice(0,9000));
    if(result.worldSummary)event('МИРОВАЯ ОБСТАНОВКА','Обзор мира · '+startDate+' — '+dateText(),String(result.worldSummary).slice(0,5000));
    (result.events||[]).forEach(e=>{if(e?.title&&e?.description&&(!e.visibility||e.visibility==='public'))event(String(e.category||'МИРОВЫЕ СОБЫТИЯ'),String(e.title),String(e.description),e)});
-   if(net){for(const a of (result.actions||[])){if(a?.countryId&&a.countryId!==net.countryId&&a.targetCountryId===net.countryId){const actor=(base.countries||[]).find(c=>c.id===a.countryId);try{await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/social/ai-action','POST',{token:net.token,action:a,countryName:actor?.name||a.countryId,message:a.type==='treaty'?'Предлагаем начать оформление двустороннего международного договора.':undefined})}catch(socialError){console.warn('Не удалось доставить дипломатическое уведомление ИИ:',socialError.message)}}}}
+   if(net){for(const a of (result.actions||[])){if(a?.countryId&&a.countryId!==a.targetCountryId&&roomPlayers.some(p=>p.countryId===a.targetCountryId)){const actor=(base.countries||[]).find(c=>c.id===a.countryId);try{await window.WC_MULTIPLAYER.api('/api/rooms/'+net.code+'/social/ai-action','POST',{token:net.token,action:a,countryName:actor?.name||a.countryId,message:a.type==='treaty'?'Предлагаем начать оформление двустороннего международного договора.':undefined})}catch(socialError){console.warn('Не удалось доставить дипломатическое уведомление ИИ:',socialError.message)}}}}
    (result.actions||[]).forEach(a=>{
     if(!a?.countryId||a.countryId===state.selected)return;
     const target=a.targetCountryId;
