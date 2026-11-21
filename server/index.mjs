@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 const app=express();
@@ -118,7 +119,7 @@ app.post('/api/ai/world-turn',async(req,res)=>{
   const allowed=new Set((world.allCountryIds||world.countries.map(c=>c.id)).filter(id=>id&&id!==world.player.id));
   const {allCountryIds,...modelWorld}=world;
   const prompt='Симулируй период с '+(world.startDate||world.date)+' по '+(world.endDate||'не указана')+' ('+world.elapsedWeeks+' недель). Приказ игрока: '+(world.playerOrder||'Игрок не отдал отдельного приказа.')+'. Состояние мира на начало периода (подробно обнови 20 выбранных государств; остальные учитывай в общей мировой картине):\n'+JSON.stringify(modelWorld);
-  const result=parse(await ask(worldSystem,prompt,3000));
+  const multiplayerOrders=(Array.isArray(b.multiplayerOrders)?b.multiplayerOrders:[]).slice(0,20).map(p=>({name:clean(p.name,24),countryId:clean(p.countryId,90),order:clean(p.order,4000)})).filter(p=>p.order);if(multiplayerOrders.length)prompt+='\n\nСЕТЕВЫЕ ПРИКАЗЫ УЧАСТНИКОВ (каждый приказ относится только к указанной стране; не смешивай государства и не приписывай их действия стране ведущего):\n'+JSON.stringify(multiplayerOrders);\n  const result=parse(await ask(worldSystem,prompt,3000));
   result.playerReport=clean(result.playerReport,9000);
   result.countryReports=(Array.isArray(result.countryReports)?result.countryReports:[]).filter(r=>r&&allowed.has(r.countryId)).map(r=>{
    const out={countryId:r.countryId};
@@ -150,5 +151,71 @@ app.post('/api/ai/world-turn',async(req,res)=>{
 app.post('/api/ai/diplomacy',route('Ты — публично выступающее правительство иностранного государства в геополитической стратегии. Отвечай от лица указанной страны, учитывай интересы, отношения, обстановку и сообщение игрока. Можешь отказать, торговаться и предлагать условия. Не раскрывай закрытые сведения. Верни только JSON {"reply":"развёрнутый официальный ответ до 1600 символов","relationDelta":целое от -5 до 5}.',b=>JSON.stringify({countryId:clean(b.countryId,80),countryName:clean(b.countryName,100),message:clean(b.message,2000),history:(b.history||[]).slice(-8),world:b.world||{}}),900));
 app.post('/api/ai/advisor',route('Ты — стратегический советник главы государства. Подготовь содержательный аналитический доклад: внутренняя обстановка, экономика, армия, дипломатические риски, открытые мировые события и приоритетные шаги. Не выдумывай показатели. Только JSON {"advice":"доклад на русском до 3000 символов"}.',b=>JSON.stringify(compactWorld(b)),1400));
 app.post('/api/ai/order',route('Ты — штабной аналитик игры. Разбери свободный приказ и сформулируй реалистичный план с этапами, ресурсными ограничениями, рисками и ожидаемыми последствиями. Не исполняй и не меняй показатели. Только JSON {"initiative":"формулировка","explanation":"подробное объяснение и этапы"}.',b=>JSON.stringify({order:clean(b.order,2000),world:b.world||{}}),900));
+
+
+const multiplayerRooms=new Map();
+const roomCode=()=>randomBytes(4).toString('hex').slice(0,6).toUpperCase();
+const roomToken=()=>randomBytes(24).toString('hex');
+const publicRoom=room=>({code:room.code,name:room.name,scenario:room.scenario,maxPlayers:room.maxPlayers,access:room.access,turn:room.turn,phase:room.phase,players:room.players.map(p=>({id:p.id,name:p.name,countryId:p.countryId,host:p.host,ready:p.ready,online:true})),createdAt:room.createdAt});
+const findRoom=(req,res)=>{const room=multiplayerRooms.get(String(req.params.code||'').toUpperCase());if(!room){res.status(404).json({error:'Комната не найдена или сервер был перезапущен.'});return null}room.lastActivity=Date.now();return room};
+const findPlayer=(room,token)=>room.players.find(p=>p.token&&p.token===String(token||''));
+app.get('/api/rooms',(_req,res)=>{
+ const now=Date.now();for(const [code,r] of multiplayerRooms)if(now-r.lastActivity>12*60*60*1000)multiplayerRooms.delete(code);
+ res.json({rooms:Array.from(multiplayerRooms.values()).filter(r=>r.access==='public'&&r.phase!=='closed'&&r.players.length<r.maxPlayers).map(publicRoom).slice(0,50)});
+});
+app.post('/api/rooms', (req,res)=>{
+ const b=req.body||{},name=clean(b.name,48).trim(),playerName=clean(b.playerName,24).trim()||'Игрок',countryId=clean(b.countryId,90).trim()||'Russia',scenario=['1836','1914','1936','2026'].includes(String(b.scenario))?String(b.scenario):'1936',maxPlayers=Math.max(2,Math.min(20,Number(b.maxPlayers)||5)),access=b.access==='public'?'public':'private';
+ if(!name)return res.status(400).json({error:'Укажите название кампании.'});
+ if(Array.from(multiplayerRooms.values()).filter(r=>r.phase!=='closed').length>=200)return res.status(503).json({error:'Сервер комнат временно перегружен.'});
+ let code;do{code=roomCode()}while(multiplayerRooms.has(code));
+ const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:true,ready:false,order:''};
+ const room={code,name,scenario,maxPlayers,access,hostId:player.id,players:[player],turn:1,phase:'lobby',weeks:1,snapshot:b.snapshot&&typeof b.snapshot==='object'?b.snapshot:null,createdAt:new Date().toISOString(),lastActivity:Date.now(),revision:1};
+ multiplayerRooms.set(code,room);res.status(201).json({room:publicRoom(room),token:player.token,playerId:player.id});
+});
+app.post('/api/rooms/:code/join',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{};
+ if(room.phase!=='lobby')return res.status(409).json({error:'Ход уже рассчитывается. Подключитесь после завершения периода.'});
+ if(room.players.length>=room.maxPlayers)return res.status(409).json({error:'В комнате нет свободных мест.'});
+ const playerName=clean(b.playerName,24).trim()||'Игрок',countryId=clean(b.countryId,90).trim()||'Russia';
+ if(room.players.some(p=>p.countryId===countryId))return res.status(409).json({error:'Это государство уже выбрал другой участник.'});
+ const player={id:roomToken().slice(0,12),token:roomToken(),name:playerName,countryId,host:false,ready:false,order:''};room.players.push(player);room.revision++;
+ res.status(201).json({room:publicRoom(room),token:player.token,playerId:player.id});
+});
+app.get('/api/rooms/:code',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const player=findPlayer(room,req.query.token);if(!player)return res.status(403).json({error:'Неверный ключ участника.'});
+ res.json({room:publicRoom(room),playerId:player.id,host:player.host,orders:room.players.map(p=>({playerId:p.id,name:p.name,countryId:p.countryId,order:p.order,ready:p.ready})),snapshot:room.snapshot,revision:room.revision,weeks:room.weeks});
+});
+app.post('/api/rooms/:code/order',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player)return res.status(403).json({error:'Неверный ключ участника.'});
+ if(room.phase!=='lobby')return res.status(409).json({error:'Нельзя менять приказ во время расчёта хода.'});
+ player.order=clean(b.order,4000).trim();player.ready=false;room.revision++;res.json({ok:true,room:publicRoom(room)});
+});
+app.post('/api/rooms/:code/ready',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player)return res.status(403).json({error:'Неверный ключ участника.'});
+ if(room.phase!=='lobby')return res.status(409).json({error:'Сейчас идёт расчёт хода.'});
+ player.ready=!!b.ready;room.revision++;res.json({ok:true,room:publicRoom(room)});
+});
+app.post('/api/rooms/:code/begin',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player||!player.host)return res.status(403).json({error:'Только ведущий может начать расчёт хода.'});
+ if(room.phase!=='lobby')return res.status(409).json({error:'Ход уже рассчитывается.'});
+ if(room.players.length<2)return res.status(409).json({error:'Для сетевого хода нужен хотя бы один второй участник.'});
+ const unready=room.players.filter(p=>!p.ready);if(unready.length)return res.status(409).json({error:'Не все участники подтвердили готовность.'});
+ room.phase='resolving';room.revision++;res.json({ok:true,orders:room.players.map(p=>({playerId:p.id,name:p.name,countryId:p.countryId,order:p.order})),room:publicRoom(room)});
+});
+app.post('/api/rooms/:code/complete',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player||!player.host)return res.status(403).json({error:'Только ведущий может завершить расчёт.'});
+ if(room.phase!=='resolving')return res.status(409).json({error:'Комната не находится в режиме расчёта.'});
+ const snapshot=b.snapshot;if(!snapshot||typeof snapshot!=='object'||JSON.stringify(snapshot).length>1800000)return res.status(400).json({error:'Некорректный или слишком большой снимок кампании.'});
+ room.snapshot=snapshot;room.turn++;room.weeks=Math.max(1,Math.min(52,Number(b.weeks)||1));room.phase='lobby';room.players.forEach(p=>{p.ready=false;p.order=''});room.revision++;res.json({ok:true,room:publicRoom(room)});
+});
+app.post('/api/rooms/:code/abort',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player||!player.host)return res.status(403).json({error:'Только ведущий может отменить расчёт.'});
+ if(room.phase==='resolving'){room.phase='lobby';room.players.forEach(p=>p.ready=false);room.revision++}res.json({ok:true,room:publicRoom(room)});
+});
+app.post('/api/rooms/:code/leave',(req,res)=>{
+ const room=findRoom(req,res);if(!room)return;const b=req.body||{},player=findPlayer(room,b.token);if(!player)return res.status(403).json({error:'Неверный ключ участника.'});
+ if(player.host){room.phase='closed';multiplayerRooms.delete(room.code)}else{room.players=room.players.filter(p=>p.id!==player.id);room.revision++}
+ res.json({ok:true});
+});
 
 app.listen(PORT,'0.0.0.0',()=>console.log('World Chronicle Railway server listening on '+PORT));
